@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glamshot Inspector Directions</title>
+<style>
+:root {
+  --accent: #0A84FF;
+  --l1: rgba(255,255,255,.88);
+  --l2: rgba(255,255,255,.58);
+  --l3: rgba(255,255,255,.30);
+  --hair: rgba(255,255,255,.10);
+  --panel: #1e1e20;
+  --page: #121214;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--l1); font: 13px/1.35 var(--font); -webkit-font-smoothing: antialiased; }
+main { max-width: 1440px; margin: 0 auto; padding: 32px 16px 80px; }
+h1 { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
+h2 { font-size: 17px; font-weight: 700; margin: 0 0 6px; }
+.lede { color: var(--l2); max-width: 820px; margin: 0 0 8px; }
+.dir { margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--hair); }
+.why { color: var(--l2); max-width: 860px; margin: 0 0 6px; }
+.repl { color: var(--l2); max-width: 860px; margin: 0 0 20px; font-size: 12px; }
+.repl b { color: var(--l1); font-weight: 600; }
+.tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 9px; background: rgba(10,132,255,.18); color: #6cb5ff; margin-left: 8px; vertical-align: 2px; }
+.states { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.state { display: flex; flex-direction: column; gap: 10px; }
+.cap { width: 300px; color: var(--l2); font-size: 12px; }
+.cap b { color: var(--l1); font-weight: 600; display: block; margin-bottom: 2px; }
+.wide .cap { width: 100%; max-width: 840px; }
+.pair { display: flex; border-radius: 10px; overflow: hidden; border: 1px solid var(--hair); }
+
+/* Inspector */
+.insp { width: 300px; background: var(--panel); padding: 14px; display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--hair); border-radius: 10px; }
+.pair .insp { border: 0; border-left: 1px solid var(--hair); border-radius: 0; }
+.card { background: rgba(255,255,255,.05); border: 1px solid var(--hair); border-radius: 12px; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+.card.off { background: transparent; }
+.card.off .hd .sym, .card.off .hd .t { color: var(--l3); }
+.hd { display: flex; align-items: center; gap: 8px; min-height: 22px; }
+.hd .sym { width: 20px; height: 15px; color: var(--accent); flex: none; }
+.hd .t { font-weight: 600; }
+.hd .sp { flex: 1; }
+.hd .val { color: var(--l2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.card.off > :not(.hd) { display: none; }
+svg.i { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+
+.stack { display: flex; flex-direction: column; gap: 6px; }
+.row { display: flex; align-items: center; gap: 6px; }
+.row .grow { flex: 1; }
+.lab { flex: 1; }
+.dim { color: var(--l2); }
+.foot { color: var(--l2); font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* two-column rows for Direction A */
+.kv { display: grid; grid-template-columns: 74px 1fr; align-items: center; column-gap: 8px; row-gap: 10px; }
+.kv > .k { color: var(--l2); text-align: right; }
+
+/* Controls */
+.pop { display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 24px; padding: 0 6px 0 10px; border-radius: 12px; background: rgba(255,255,255,.12); box-shadow: inset 0 .5px 0 rgba(255,255,255,.10); white-space: nowrap; }
+.pop.fit { display: inline-flex; }
+.pop svg { width: 9px; height: 13px; stroke: var(--l2); stroke-width: 1.5; fill: none; flex: none; }
+.seg { display: flex; height: 24px; padding: 2px; border-radius: 12px; background: rgba(255,255,255,.10); }
+.seg > span { flex: 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; font-size: 12px; color: var(--l1); white-space: nowrap; padding: 0 4px; }
+.seg > .on { background: rgba(255,255,255,.27); color: #fff; box-shadow: 0 .5px 1.5px rgba(0,0,0,.35); }
+.seg.sm { height: 22px; width: 58px; flex: none; }
+.seg svg.i { width: 13px; height: 13px; }
+.fld { height: 22px; border-radius: 6px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.13); padding: 0 7px; display: flex; align-items: center; font-variant-numeric: tabular-nums; min-width: 0; }
+.fld.ph { color: var(--l3); }
+.fld.ro { background: transparent; border-style: dashed; color: var(--l2); }
+.sw { width: 28px; height: 16px; border-radius: 8px; background: var(--accent); position: relative; flex: none; }
+.sw::after { content: ""; position: absolute; top: 1.5px; right: 1.5px; width: 13px; height: 13px; border-radius: 50%; background: #fff; box-shadow: 0 .5px 1.5px rgba(0,0,0,.4); }
+.sw.off { background: rgba(255,255,255,.2); }
+.sw.off::after { right: auto; left: 1.5px; }
+.btn { height: 22px; border-radius: 11px; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center; padding: 0 10px; flex: 1; white-space: nowrap; }
+.ib { width: 26px; height: 22px; border-radius: 11px; background: rgba(255,255,255,.12); display: grid; place-items: center; flex: none; color: var(--l1); }
+.ib.bare { background: transparent; color: var(--l2); width: 20px; }
+.ib svg.i { width: 13px; height: 13px; }
+.well { width: 38px; height: 22px; border-radius: 11px; background: rgba(255,255,255,.12); display: grid; place-items: center; flex: none; }
+.well i { width: 26px; height: 14px; border-radius: 7px; background: #fff; display: block; }
+.disc { display: flex; align-items: center; gap: 6px; color: var(--l1); }
+.disc svg { width: 9px; height: 9px; stroke: var(--l2); stroke-width: 1.8; fill: none; }
+
+/* Slider (InspectorSlider: title + readout, track below) */
+.sl { display: flex; flex-direction: column; gap: 4px; }
+.slh { display: flex; justify-content: space-between; }
+.slh .rv { font-variant-numeric: tabular-nums; color: var(--l1); }
+.slh .rv i { font-style: normal; color: var(--l2); }
+.track { position: relative; height: 16px; --v: .5; --d: -1; }
+.track::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.16); }
+.track .fill { position: absolute; left: 0; top: 6px; height: 4px; border-radius: 2px; width: calc(var(--v) * 100%); background: var(--accent); }
+.track .tick { position: absolute; top: 13px; width: 1px; height: 4px; left: calc(var(--d) * 100%); background: rgba(255,255,255,.4); }
+.track .knob { position: absolute; top: 1px; left: calc(var(--v) * (100% - 22px)); width: 22px; height: 14px; border-radius: 7px; background: #ececee; box-shadow: 0 .5px 2px rgba(0,0,0,.55); }
+.track .mark { position: absolute; top: 12px; width: 1px; height: 4px; background: rgba(255,255,255,.22); }
+
+/* Swatches */
+.sg4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.sg4 > i { height: 30px; border-radius: 6px; display: block; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+.sg5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.sg5 > i { height: 26px; border-radius: 6px; display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); font-style: normal; color: var(--l2); }
+.sg5 > i svg.i { width: 14px; height: 14px; }
+.sg4 > i.on, .sg5 > i.on { box-shadow: 0 0 0 2px var(--accent); }
+.sg5 > .tool { background: rgba(255,255,255,.06); }
+.sg5 > .color { background: conic-gradient(from 0deg, #ff453a, #ffd60a, #32d74b, #64d2ff, #0a84ff, #bf5af2, #ff453a); }
+.sg5 > .color::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.3); }
+
+/* Frame tiles */
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tile { border-radius: 8px; padding: 4px 4px 3px; background: rgba(255,255,255,.05); border: 1.5px solid transparent; text-align: center; font-size: 11px; color: var(--l2); }
+.tile svg { width: 100%; height: 34px; display: block; }
+.tile.on { border-color: var(--accent); background: rgba(10,132,255,.14); color: #fff; }
+.tile.dis { opacity: .32; }
+
+/* Gradients (Glamshot's eight Undertone recipes, approximated) */
+.g-tahoe { background: radial-gradient(circle at 15% 12%, #D7E8FF 0, transparent 50%), radial-gradient(circle at 78% 22%, #4B8CFF 0, transparent 60%), radial-gradient(circle at 28% 78%, #1F5EE0 0, transparent 60%), radial-gradient(circle at 88% 90%, #0B3BB5 0, transparent 55%), #5d93f0; }
+.g-dusk { background: radial-gradient(circle at 18% 20%, #F3AC91 0, transparent 55%), radial-gradient(circle at 78% 24%, #7655A3 0, transparent 60%), radial-gradient(circle at 34% 82%, #F3CC91 0, transparent 55%), radial-gradient(circle at 92% 85%, #3B526E 0, transparent 55%), #a7829a; }
+.g-tidal { background: radial-gradient(circle at 20% 15%, #E8DFC7 0, transparent 55%), radial-gradient(circle at 70% 35%, #67B8AC 0, transparent 60%), radial-gradient(circle at 35% 85%, #164E63 0, transparent 55%), radial-gradient(circle at 90% 80%, #2C8C99 0, transparent 55%), #5f9e9c; }
+.g-bloom { background: radial-gradient(circle at 15% 15%, #FFD6E7 0, transparent 55%), radial-gradient(circle at 75% 25%, #E86FB8 0, transparent 60%), radial-gradient(circle at 30% 75%, #B98AF2 0, transparent 55%), radial-gradient(circle at 85% 88%, #5E4AC9 0, transparent 55%), #c58dd0; }
+.g-citrus { background: radial-gradient(circle at 20% 12%, #FFF2B3 0, transparent 55%), radial-gradient(circle at 80% 30%, #FFB347 0, transparent 60%), radial-gradient(circle at 25% 80%, #FF7B54 0, transparent 55%), radial-gradient(circle at 85% 90%, #D9415E 0, transparent 55%), #ffa05a; }
+.g-moss { background: radial-gradient(circle at 20% 15%, #DCEFC2 0, transparent 55%), radial-gradient(circle at 75% 30%, #6CBF84 0, transparent 60%), radial-gradient(circle at 30% 80%, #2F7D62 0, transparent 55%), radial-gradient(circle at 88% 88%, #123A33 0, transparent 55%), #5ea47a; }
+.g-midnight { background: radial-gradient(circle at 20% 15%, #22365F 0, transparent 55%), radial-gradient(circle at 80% 25%, #4A3A8C 0, transparent 60%), radial-gradient(circle at 30% 85%, #070D1C 0, transparent 55%), radial-gradient(circle at 85% 80%, #1D3A6E 0, transparent 55%), #1b2546; }
+.g-ember { background: radial-gradient(circle at 20% 20%, #842D43 0, transparent 55%), radial-gradient(circle at 75% 35%, #E57E55 0, transparent 60%), radial-gradient(circle at 35% 85%, #F4D8AB 0, transparent 55%), radial-gradient(circle at 90% 90%, #4A1230 0, transparent 55%), #a5504c; }
+
+/* Canvas stage for Direction C */
+.stage { width: 540px; height: 100%; min-height: 470px; background: #161618; position: relative; display: grid; place-items: center; }
+.art { position: relative; width: 456px; height: 296px; box-shadow: 0 0 0 1px rgba(255,255,255,.06); }
+.win { position: absolute; border-radius: 9px; overflow: hidden; background: #f4f4f6; box-shadow: 0 14px 30px rgba(0,0,0,.35), 0 0 0 .5px rgba(0,0,0,.4); }
+.win .bar { height: 22px; background: #2c2c2f; display: flex; align-items: center; gap: 4px; padding: 0 8px; }
+.win .bar i { width: 7px; height: 7px; border-radius: 50%; display: block; }
+.win .bar .addr { margin: 0 auto; width: 110px; height: 13px; border-radius: 7px; background: #3d3d41; font-size: 8px; color: #ccc; display: grid; place-items: center; font-style: normal; }
+.win .pg { padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; }
+.win .pg i { display: block; height: 7px; border-radius: 3px; background: #d6d6dc; }
+.win .pg i.h { height: 14px; width: 55%; background: #1d1d22; }
+.win .pg i.b { height: 46px; background: linear-gradient(120deg, #c9d6ff, #e9d3ff); }
+.guide { position: absolute; border: 1px dashed rgba(255,255,255,.7); pointer-events: none; }
+.badge { position: absolute; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 8px; background: var(--accent); color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hdl { position: absolute; width: 8px; height: 8px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1px var(--accent); }
+.hdl.edge-v { width: 4px; height: 22px; border-radius: 2px; }
+.hdl.edge-h { width: 22px; height: 4px; border-radius: 2px; }
+.sel { position: absolute; border: 1.5px solid var(--accent); border-radius: 10px; pointer-events: none; }
+.menubar { position: absolute; left: 0; right: 0; top: 0; height: 14px; background: rgba(255,255,255,.28); display: flex; align-items: center; gap: 9px; padding: 0 8px; font-size: 8px; color: #10131a; }
+.menubar b { font-weight: 700; }
+.menubar .clk { margin-left: auto; padding: 0 3px; border-radius: 3px; box-shadow: 0 0 0 1px var(--accent); background: rgba(255,255,255,.6); }
+.glass { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 5px; border-radius: 20px; background: rgba(44,44,48,.62); backdrop-filter: blur(18px) saturate(1.6); -webkit-backdrop-filter: blur(18px) saturate(1.6); }
+.glass .gb { height: 28px; min-width: 32px; border-radius: 14px; display: grid; place-items: center; color: var(--l1); padding: 0 6px; }
+.glass .gb.on { background: rgba(255,255,255,.22); color: #fff; }
+.glass .gb.dis { opacity: .35; }
+.glass .sep { width: 1px; height: 18px; background: rgba(255,255,255,.14); margin: 0 3px; }
+.glass .dot { width: 18px; height: 18px; border-radius: 50%; display: block; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); }
+.glass svg.i { width: 16px; height: 16px; }
+
+.notes { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 28px; max-width: 1100px; }
+.notes div { font-size: 12px; color: var(--l2); }
+.notes b { color: var(--l1); font-weight: 600; }
+.fine { margin-top: 48px; color: var(--l3); font-size: 11px; }
+@media (max-width: 640px) {
+  .insp, .cap { width: 100%; max-width: 300px; }
+  .pair { flex-direction: column; }
+  .stage { width: 100%; min-height: 0; padding: 16px 0; overflow: hidden; }
+  .art { transform: scale(.68); transform-origin: center; margin: -48px -73px; }
+  .pair .insp { border-left: 0; border-top: 1px solid var(--hair); }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="gd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3AC91"/><stop offset=".55" stop-color="#7655A3"/><stop offset="1" stop-color="#3B526E"/></linearGradient>
+    <linearGradient id="gt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D7E8FF"/><stop offset=".5" stop-color="#4B8CFF"/><stop offset="1" stop-color="#0B3BB5"/></linearGradient>
+    <symbol id="i-photo" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M1.8 11.5l3.7-3.6 3 2.8 2-1.8 3.7 3.2"/><circle cx="11" cy="6" r="1.2"/></symbol>
+    <symbol id="i-aspect" viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="2"/><path d="M4 8.5V6h2.5M12 7.5V10H9.5"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 16 16"><path d="M4 1.5h5.5l3 3v10h-8.5z"/><path d="M9.5 1.5v3h3M6 8h5M6 10.5h5M6 13h3"/></symbol>
+    <symbol id="i-win" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M1.5 5.8h13"/><path d="M3.6 4.1h.1M5.2 4.1h.1M6.8 4.1h.1"/></symbol>
+    <symbol id="i-frame" viewBox="0 0 16 16"><rect x="1" y="1.5" width="14" height="13" rx="2"/><rect x="4" y="4.5" width="8" height="7" rx="1"/></symbol>
+    <symbol id="i-backdrop" viewBox="0 0 16 16"><rect x="3.5" y="1.5" width="11" height="9" rx="1.6"/><path d="M1.5 4.5v8a2 2 0 0 0 2 2h8"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.2v1.6M8 13.2v1.6M1.2 8h1.6M13.2 8h1.6M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M3.2 12.8l1.1-1.1M11.7 4.3l1.1-1.1"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 16 16"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 16 16"><path d="M1.5 4.5h2.5c3.5 0 4.5 7 8 7h2.5M1.5 11.5h2.5c1.4 0 2.3-1.1 3-2.4M9 6.9c.7-1.3 1.6-2.4 3-2.4h2.5M12.5 2.5l2 2-2 2M12.5 9.5l2 2-2 2"/></symbol>
+    <symbol id="i-image" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M1.8 11.5l3.7-3.6 3 2.8 2-1.8 3.7 3.2"/><circle cx="11" cy="6" r="1.2"/></symbol>
+    <symbol id="i-center" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><rect x="5" y="5.5" width="6" height="5" rx="1"/></symbol>
+    <symbol id="i-fill" viewBox="0 0 16 16"><path d="M9.5 2h4.5v4.5M6.5 14H2V9.5M14 2L9.5 6.5M2 14l4.5-4.5"/></symbol>
+    <symbol id="i-updown" viewBox="0 0 9 13"><path d="M1.5 5L4.5 2l3 3M1.5 8l3 3 3-3"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 9 9"><path d="M3 1.5L6 4.5 3 7.5"/></symbol>
+    <symbol id="i-page" viewBox="0 0 16 16"><rect x="3" y="1.5" width="10" height="13" rx="1.5"/><path d="M5.5 5h5M5.5 7.5h5M5.5 10h3"/></symbol>
+    <symbol id="i-desk" viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="11" rx="1.5"/><path d="M1 4.5h14"/><rect x="4" y="6.5" width="8" height="5" rx="1"/></symbol>
+  </defs>
+</svg>
+
+<main>
+<h1>Glamshot inspector: three directions</h1>
+<p class="lede">Dark mode, 300 pt inspector, DMKit card metrics (12 pt radius, 14 pt padding, 12 pt spacing, one accent symbol per card). Sample: MacBook Pro 14″ at 2×, Dusk gradient. Today’s inspector is first, for height and density comparison.</p>
+
+<!-- ============ TODAY ============ -->
+<section class="dir">
+<h2>Today</h2>
+<p class="why">Four cards, every control titled above itself, three explanatory lines, four text buttons, two header switches plus a mode segment that together pick the frame.</p>
+<div class="states">
+ <div class="state">
+  <div class="insp">
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-photo"/></svg><span class="t">Output</span></div>
+    <div class="stack"><span>Size</span><span class="pop fit" style="align-self:flex-start">MacBook Pro 14″<svg><use href="#i-updown"/></svg></span></div>
+    <div class="row"><span class="fld grow">1512</span><span class="dim">×</span><span class="fld grow">982</span><span class="dim">pt</span></div>
+    <div class="stack"><span>Scale</span><div class="seg"><span>1×</span><span class="on">2×</span><span>3×</span></div></div>
+    <span class="foot">Saves 3024 × 1964 px</span>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-doc"/></svg><span class="t">Page</span></div>
+    <div class="sl"><div class="slh"><span>Zoom</span><span class="rv">100%</span></div><div class="track" style="--v:1;--d:1"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+    <div class="stack"><span>Appearance</span><div class="seg"><span class="on">Light</span><span>Dark</span></div></div>
+    <span class="foot">Lays out like a 1,374 × 792 browser window.</span>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-win"/></svg><span class="t">Safari Window</span><span class="sp"></span><span class="sw"></span></div>
+    <div class="stack"><span>Device</span><div class="seg"><span class="on">Auto</span><span>Mac</span><span>iPad</span><span>iPhone</span></div></div>
+    <div class="stack"><span>Address</span><div class="seg"><span class="on">Domain</span><span>Full</span><span>Custom</span><span>Hidden</span></div></div>
+    <div class="row"><span class="lab">Tab Bar</span><span class="sw off"></span></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-backdrop"/></svg><span class="t">Backdrop</span><span class="sp"></span><span class="sw"></span></div>
+    <div class="seg"><span class="on">Canvas</span><span>Desktop</span></div>
+    <div class="stack"><span>Background</span>
+     <div class="sg4" data-sw="dusk"></div>
+     <div class="row"><span class="btn">Shuffle</span><span class="btn">Image…</span><span class="well"><i></i></span></div>
+    </div>
+    <div class="row"><span class="lab">Auto Padding</span><span class="sw"></span></div>
+    <div class="sl"><div class="slh"><span>Shadow</span><span class="rv">70%</span></div><div class="track" style="--v:.7;--d:.7"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+  </div>
+  <div class="cap"><b>Screen · Safari on Canvas</b>Padding has no visible amount while Auto Padding is on. Device repeats what Size already says.</div>
+ </div>
+</div>
+</section>
+
+<!-- ============ A ============ -->
+<section class="dir">
+<h2>A · Same four cards, half the rows</h2>
+<p class="why">Keep today’s model and card order; change only how controls sit. Labels move to a left column, as in Keynote’s and Pages’ Format inspectors, so a row is one line instead of two. Values that were footers move into the controls (pixel size in the card header, layout width as the slider’s readout). Four-word text segments become pop-ups; Light/Dark becomes a sun/moon pair in the Page header. Rarely used Desktop settings go into a closed disclosure group. Lowest risk; the frame is still chosen with two switches and a segment.</p>
+<p class="repl"><b>Replaces:</b> Device segment (always automatic), Scale segments (pop-up beside the dimensions), Zoom + footer (Page Width slider in px), Auto Padding switch (Padding slider defaulting to Auto), Shuffle / Image… / Center Window / Fill Desktop text buttons (icon buttons and swatch tiles), drag hint. <b>Keeps:</b> Output · Page · Safari Window · Backdrop, both header switches, Canvas/Desktop choice.</p>
+<div class="states">
+ <div class="state">
+  <div class="insp">
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-photo"/></svg><span class="t">Output</span><span class="sp"></span><span class="val">3024 × 1964 px</span></div>
+    <div class="kv">
+     <span class="k">Size</span><span class="pop">MacBook Pro 14″<svg><use href="#i-updown"/></svg></span>
+     <span class="k">Points</span><div class="row"><span class="fld grow">1512</span><span class="dim">×</span><span class="fld grow">982</span><span class="pop fit">2×<svg><use href="#i-updown"/></svg></span></div>
+    </div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-doc"/></svg><span class="t">Page</span><span class="sp"></span><div class="seg sm"><span class="on"><svg class="i"><use href="#i-sun"/></svg></span><span><svg class="i"><use href="#i-moon"/></svg></span></div></div>
+    <div class="sl"><div class="slh"><span>Page Width</span><span class="rv">1,374 px</span></div><div class="track" style="--v:0;--d:0"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-win"/></svg><span class="t">Safari Window</span><span class="sp"></span><span class="sw"></span></div>
+    <div class="kv">
+     <span class="k">Address</span><span class="pop">Domain<svg><use href="#i-updown"/></svg></span>
+     <span class="k">Tab Bar</span><span style="display:flex;justify-content:flex-end"><span class="sw off"></span></span>
+    </div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-backdrop"/></svg><span class="t">Backdrop</span><span class="sp"></span><span class="sw"></span></div>
+    <div class="kv">
+     <span class="k">Style</span><div class="seg"><span class="on">Canvas</span><span>Desktop</span></div>
+    </div>
+    <div class="sg5" data-sw5="dusk"></div>
+    <div class="sl"><div class="slh"><span>Padding</span><span class="rv"><i>Auto ·</i> 69 pt</span></div><div class="track" style="--v:.17;--d:.17"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+    <div class="sl"><div class="slh"><span>Shadow</span><span class="rv">70%</span></div><div class="track" style="--v:.7;--d:.7"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+  </div>
+  <div class="cap"><b>Screen · Safari on Canvas</b>Same cards as today. Padding always shows its amount; dragging it turns Auto off, double-clicking “Padding” returns to Auto.</div>
+ </div>
+
+ <div class="state">
+  <div class="insp">
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-photo"/></svg><span class="t">Output</span><span class="sp"></span><span class="val">3024 × 1964 px</span></div>
+    <div class="kv">
+     <span class="k">Size</span><span class="pop">MacBook Pro 14″<svg><use href="#i-updown"/></svg></span>
+     <span class="k">Points</span><div class="row"><span class="fld grow">1512</span><span class="dim">×</span><span class="fld grow">982</span><span class="pop fit">2×<svg><use href="#i-updown"/></svg></span></div>
+    </div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-doc"/></svg><span class="t">Page</span><span class="sp"></span><div class="seg sm"><span><svg class="i"><use href="#i-sun"/></svg></span><span class="on"><svg class="i"><use href="#i-moon"/></svg></span></div></div>
+    <div class="sl"><div class="slh"><span>Page Width</span><span class="rv">1,210 px</span></div><div class="track" style="--v:0;--d:0"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-win"/></svg><span class="t">Safari Window</span><span class="sp"></span><span class="sw"></span></div>
+    <div class="kv">
+     <span class="k">Address</span><span class="pop">Custom<svg><use href="#i-updown"/></svg></span>
+     <span class="k"></span><span class="fld">glamshot.app</span>
+     <span class="k">Tab Bar</span><span style="display:flex;justify-content:flex-end"><span class="sw"></span></span>
+    </div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-backdrop"/></svg><span class="t">Backdrop</span><span class="sp"></span><span class="sw"></span></div>
+    <div class="kv">
+     <span class="k">Style</span><div class="seg"><span>Canvas</span><span class="on">Desktop</span></div>
+    </div>
+    <div class="sg5" data-sw5="tahoe"></div>
+    <div class="kv">
+     <span class="k">Window</span><div class="row"><span class="fld grow">1210</span><span class="dim">×</span><span class="fld grow">766</span><span class="ib"><svg class="i"><use href="#i-center"/></svg></span><span class="ib"><svg class="i"><use href="#i-fill"/></svg></span></div>
+    </div>
+    <div class="disc"><svg><use href="#i-chev"/></svg>Menu Bar</div>
+   </div>
+  </div>
+  <div class="cap"><b>Screen · Safari on Desktop</b>Window W × H update live while the window is dragged or resized on the canvas. Center and Fill are icon buttons. Menu Bar (appearance, app name, clock) is a closed disclosure group.</div>
+ </div>
+
+ <div class="state">
+  <div class="insp">
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-photo"/></svg><span class="t">Output</span><span class="sp"></span><span class="val">3024 × 11,840 px</span></div>
+    <div class="kv">
+     <span class="k">Size</span><span class="pop">MacBook Pro 14″<svg><use href="#i-updown"/></svg></span>
+     <span class="k">Points</span><div class="row"><span class="fld grow">1512</span><span class="dim">×</span><span class="fld grow ro">Full</span><span class="pop fit">2×<svg><use href="#i-updown"/></svg></span></div>
+    </div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-doc"/></svg><span class="t">Page</span><span class="sp"></span><div class="seg sm"><span class="on"><svg class="i"><use href="#i-sun"/></svg></span><span><svg class="i"><use href="#i-moon"/></svg></span></div></div>
+    <div class="sl"><div class="slh"><span>Page Width</span><span class="rv">1,374 px</span></div><div class="track" style="--v:0;--d:0"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-backdrop"/></svg><span class="t">Backdrop</span><span class="sp"></span><span class="sw"></span></div>
+    <div class="sg5" data-sw5="dusk"></div>
+    <div class="sl"><div class="slh"><span>Padding</span><span class="rv"><i>Auto ·</i> 69 pt</span></div><div class="track" style="--v:.17;--d:.17"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+    <div class="sl"><div class="slh"><span>Corner Radius</span><span class="rv">14 pt</span></div><div class="track" style="--v:.35;--d:.35"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+    <div class="sl"><div class="slh"><span>Shadow</span><span class="rv">70%</span></div><div class="track" style="--v:.7;--d:.7"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+  </div>
+  <div class="cap"><b>Full Page · on Canvas</b>Safari Window card hidden, as today. The height field reads “Full” and is not editable.</div>
+ </div>
+</div>
+</section>
+
+<!-- ============ B ============ -->
+<section class="dir">
+<h2>B · One frame picker <span class="tag">Recommended</span></h2>
+<p class="why">Today the frame is picked in three places: the Safari Window switch, the Backdrop switch, and the Canvas/Desktop segment. Replace all three with one row of four thumbnails: Page, Safari, Canvas, Desktop. The thumbnail shows the result, so no explanation is needed, and the cards below show only what the chosen frame uses. Everything that is part of the frame (background, padding or window size, shadow) sits in one Frame card under the picker; the browser chrome (address, tab bar) gets its own Window card, shown only when a Safari window is drawn. Settings the app can work out (device, menu bar appearance) stop being inspector controls; menu bar text is edited on the canvas, like the custom address already is.</p>
+<p class="repl"><b>Replaces in today’s model:</b> the window × backdrop pair as UI (stored Look fields stay; tiles map Page = none/none, Safari = safari/none, Canvas = either/canvas, Desktop = safari/desktop), Device (always automatic), Menu Bar appearance (automatic; Frame menu keeps Light/Dark), App Name and Clock fields (click on the canvas, plus Frame ▸ Menu Bar Text…), Zoom (shown as Page Width in px), Auto Padding switch, all four text buttons and all three explanatory lines.</p>
+<div class="states">
+ <div class="state">
+  <div class="insp">
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-aspect"/></svg><span class="t">Size</span><span class="sp"></span><span class="val">3024 × 1964 px</span></div>
+    <span class="pop">MacBook Pro 14″<svg><use href="#i-updown"/></svg></span>
+    <div class="row"><span class="fld grow">1512</span><span class="dim">×</span><span class="fld grow">982</span><span class="dim">pt</span><span class="pop fit">2×<svg><use href="#i-updown"/></svg></span></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-doc"/></svg><span class="t">Page</span><span class="sp"></span><div class="seg sm"><span class="on"><svg class="i"><use href="#i-sun"/></svg></span><span><svg class="i"><use href="#i-moon"/></svg></span></div></div>
+    <div class="sl"><div class="slh"><span>Page Width</span><span class="rv">1,374 px</span></div><div class="track" style="--v:0;--d:0"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-frame"/></svg><span class="t">Frame</span></div>
+    <div class="tiles" data-tiles="canvas"></div>
+    <div class="stack"><div class="row"><span class="lab">Background</span><span class="ib bare"><svg class="i"><use href="#i-shuffle"/></svg></span></div><div class="sg5" data-sw5="dusk"></div></div>
+    <div class="sl"><div class="slh"><span>Padding</span><span class="rv"><i>Auto ·</i> 69 pt</span></div><div class="track" style="--v:.17;--d:.17"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+    <div class="sl"><div class="slh"><span>Shadow</span><span class="rv">70%</span></div><div class="track" style="--v:.7;--d:.7"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-win"/></svg><span class="t">Safari Window</span><span class="sp"></span><span class="sw"></span></div>
+    <div class="row"><span class="lab">Address</span><span class="pop fit" style="min-width:118px">Domain<svg><use href="#i-updown"/></svg></span></div>
+    <div class="row"><span class="lab">Tab Bar</span><span class="sw off"></span></div>
+   </div>
+  </div>
+  <div class="cap"><b>Screen · Canvas</b>The Safari Window switch exists only on Canvas, the one frame where the window is optional. Off, the card dims (isActive) and Frame gains Corner Radius.</div>
+ </div>
+
+ <div class="state">
+  <div class="insp">
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-aspect"/></svg><span class="t">Size</span><span class="sp"></span><span class="val">3024 × 1964 px</span></div>
+    <span class="pop">MacBook Pro 14″<svg><use href="#i-updown"/></svg></span>
+    <div class="row"><span class="fld grow">1512</span><span class="dim">×</span><span class="fld grow">982</span><span class="dim">pt</span><span class="pop fit">2×<svg><use href="#i-updown"/></svg></span></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-doc"/></svg><span class="t">Page</span><span class="sp"></span><div class="seg sm"><span><svg class="i"><use href="#i-sun"/></svg></span><span class="on"><svg class="i"><use href="#i-moon"/></svg></span></div></div>
+    <div class="sl"><div class="slh"><span>Page Width</span><span class="rv">1,210 px</span></div><div class="track" style="--v:0;--d:0"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-frame"/></svg><span class="t">Frame</span></div>
+    <div class="tiles" data-tiles="desktop"></div>
+    <div class="stack"><div class="row"><span class="lab">Background</span><span class="ib bare"><svg class="i"><use href="#i-shuffle"/></svg></span></div><div class="sg5" data-sw5="tahoe"></div></div>
+    <div class="stack"><span>Window Size</span><div class="row"><span class="fld grow">1210</span><span class="dim">×</span><span class="fld grow">766</span><span class="dim">pt</span><span class="ib"><svg class="i"><use href="#i-center"/></svg></span><span class="ib"><svg class="i"><use href="#i-fill"/></svg></span></div></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-win"/></svg><span class="t">Safari Window</span></div>
+    <div class="row"><span class="lab">Address</span><span class="pop fit" style="min-width:118px">Custom<svg><use href="#i-updown"/></svg></span></div>
+    <span class="fld">glamshot.app</span>
+    <div class="row"><span class="lab">Tab Bar</span><span class="sw"></span></div>
+   </div>
+  </div>
+  <div class="cap"><b>Screen · Desktop</b>Window Size follows drags on the canvas; typing a size resizes around the window’s center. Center and Fill Desktop are icon buttons with tooltips. Menu bar text is clicked and edited on the canvas.</div>
+ </div>
+
+ <div class="state">
+  <div class="insp">
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-aspect"/></svg><span class="t">Size</span><span class="sp"></span><span class="val">3024 × 11,840 px</span></div>
+    <span class="pop">MacBook Pro 14″<svg><use href="#i-updown"/></svg></span>
+    <div class="row"><span class="fld grow">1512</span><span class="dim">×</span><span class="fld grow ro">Full</span><span class="dim">pt</span><span class="pop fit">2×<svg><use href="#i-updown"/></svg></span></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-doc"/></svg><span class="t">Page</span><span class="sp"></span><div class="seg sm"><span class="on"><svg class="i"><use href="#i-sun"/></svg></span><span><svg class="i"><use href="#i-moon"/></svg></span></div></div>
+    <div class="sl"><div class="slh"><span>Page Width</span><span class="rv">1,374 px</span></div><div class="track" style="--v:0;--d:0"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-frame"/></svg><span class="t">Frame</span></div>
+    <div class="tiles" data-tiles="canvas" data-dis="safari,desktop"></div>
+    <div class="stack"><div class="row"><span class="lab">Background</span><span class="ib bare"><svg class="i"><use href="#i-shuffle"/></svg></span></div><div class="sg5" data-sw5="dusk"></div></div>
+    <div class="sl"><div class="slh"><span>Padding</span><span class="rv"><i>Auto ·</i> 69 pt</span></div><div class="track" style="--v:.17;--d:.17"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+    <div class="sl"><div class="slh"><span>Corner Radius</span><span class="rv">14 pt</span></div><div class="track" style="--v:.35;--d:.35"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+    <div class="sl"><div class="slh"><span>Shadow</span><span class="rv">70%</span></div><div class="track" style="--v:.7;--d:.7"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+  </div>
+  <div class="cap"><b>Full Page · Canvas</b>Safari and Desktop thumbnails stay visible but disabled (tooltip: “Full Page draws no window”), so the switch back to Screen restores them. No Window card.</div>
+ </div>
+
+ <div class="state">
+  <div class="insp">
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-aspect"/></svg><span class="t">Size</span><span class="sp"></span><span class="val">1206 × 2622 px</span></div>
+    <span class="pop">iPhone 17 Pro<svg><use href="#i-updown"/></svg></span>
+    <div class="row"><span class="fld grow">402</span><span class="dim">×</span><span class="fld grow">874</span><span class="dim">pt</span><span class="pop fit">3×<svg><use href="#i-updown"/></svg></span></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-doc"/></svg><span class="t">Page</span><span class="sp"></span><div class="seg sm"><span class="on"><svg class="i"><use href="#i-sun"/></svg></span><span><svg class="i"><use href="#i-moon"/></svg></span></div></div>
+    <div class="sl"><div class="slh"><span>Page Width</span><span class="rv">402 px</span></div><div class="track" style="--v:0;--d:0"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-frame"/></svg><span class="t">Frame</span></div>
+    <div class="tiles" data-tiles="safari" data-dis="desktop"></div>
+    <div class="sl"><div class="slh"><span>Shadow</span><span class="rv">0%</span></div><div class="track" style="--v:0;--d:.7"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+   </div>
+   <div class="card">
+    <div class="hd"><svg class="i sym"><use href="#i-win"/></svg><span class="t">Safari Window</span></div>
+    <div class="row"><span class="lab">Address</span><span class="pop fit" style="min-width:118px">Domain<svg><use href="#i-updown"/></svg></span></div>
+    <div class="row"><span class="lab">Minimized Bar</span><span class="sw off"></span></div>
+   </div>
+  </div>
+  <div class="cap"><b>Screen · Safari, iPhone size</b>Safari on iPhone is drawn because the size is an iPhone. iPhone has no tab bar, so its row becomes Minimized Bar. Desktop is disabled for phone and tablet sizes.</div>
+ </div>
+</div>
+<div class="notes">
+ <div><b>Size pop-up.</b> Grouped presets, then a separator and Custom. Custom is checked when W × H match no preset; typing in either field selects it.</div>
+ <div><b>Background.</b> Eight gradient tiles, a color tile (opens the color panel) and an Image tile (opens the panel). The shuffle button only shows on a gradient.</div>
+ <div><b>Padding.</b> One slider. Its default tick is Auto: the readout says “Auto · 69 pt”; dragging sets a fixed amount; double-clicking the title returns to Auto.</div>
+ <div><b>Menu bar.</b> Every removed control keeps its Frame menu item (F9), disabled when it doesn’t apply.</div>
+</div>
+</section>
+
+<!-- ============ C ============ -->
+<section class="dir">
+<h2>C · The canvas frames, the inspector follows the selection</h2>
+<p class="why">Treat the frame as objects on the canvas, as Keynote and Pixelmator Pro do. A floating glass bar under the image picks the frame and background; clicking the backdrop or the window chrome selects it, and the inspector shows that object’s card under the always-present Size and Page cards. Padding is dragged from the canvas edges and the window from its toolbar, each with a live badge. The live page itself can’t be selected, because clicks there go to the website. That is the main cost: the frame’s settings are out of sight until you click the right object, and every selection state needs a menu equivalent.</p>
+<p class="repl"><b>Replaces:</b> everything B replaces, plus the Frame card (moves to the glass bar and to selection), the header switches, and the always-visible Background grid. <b>New concept:</b> a selection on the canvas (Backdrop, Window, or none), which today’s model doesn’t have.</p>
+<div class="states">
+ <div class="state wide">
+  <div class="pair">
+   <div class="stage">
+    <div class="art g-dusk">
+     <div class="win" style="left:31px;top:31px;right:31px;bottom:31px"><div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><em class="addr">glamshot.app</em></div><div class="pg"><i class="h"></i><i style="width:80%"></i><i style="width:65%"></i><i class="b"></i><i style="width:72%"></i></div></div>
+    </div>
+    <div class="glass">
+     <span class="gb"><svg class="i"><use href="#i-page"/></svg></span><span class="gb"><svg class="i"><use href="#i-win"/></svg></span><span class="gb on"><svg class="i"><use href="#i-frame"/></svg></span><span class="gb"><svg class="i"><use href="#i-desk"/></svg></span>
+     <span class="sep"></span><span class="gb"><i class="dot g-dusk"></i></span><span class="gb"><svg class="i"><use href="#i-shuffle"/></svg></span>
+    </div>
+   </div>
+   <div class="insp">
+    <div class="card">
+     <div class="hd"><svg class="i sym"><use href="#i-aspect"/></svg><span class="t">Size</span><span class="sp"></span><span class="val">3024 × 1964 px</span></div>
+     <span class="pop">MacBook Pro 14″<svg><use href="#i-updown"/></svg></span>
+     <div class="row"><span class="fld grow">1512</span><span class="dim">×</span><span class="fld grow">982</span><span class="dim">pt</span><span class="pop fit">2×<svg><use href="#i-updown"/></svg></span></div>
+    </div>
+    <div class="card">
+     <div class="hd"><svg class="i sym"><use href="#i-doc"/></svg><span class="t">Page</span><span class="sp"></span><div class="seg sm"><span class="on"><svg class="i"><use href="#i-sun"/></svg></span><span><svg class="i"><use href="#i-moon"/></svg></span></div></div>
+     <div class="sl"><div class="slh"><span>Page Width</span><span class="rv">1,374 px</span></div><div class="track" style="--v:0;--d:0"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+    </div>
+   </div>
+  </div>
+  <div class="cap"><b>Screen · Canvas, nothing selected</b>Glass bar: Page / Safari / Canvas / Desktop, then the background (click for a swatch popover) and Shuffle. The inspector has only Size and Page.</div>
+ </div>
+
+ <div class="state wide">
+  <div class="pair">
+   <div class="stage">
+    <div class="art g-dusk">
+     <div class="win" style="left:31px;top:31px;right:31px;bottom:31px"><div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><em class="addr">glamshot.app</em></div><div class="pg"><i class="h"></i><i style="width:80%"></i><i style="width:65%"></i><i class="b"></i><i style="width:72%"></i></div></div>
+     <div class="guide" style="left:31px;top:31px;right:31px;bottom:31px"></div>
+     <span class="hdl edge-v" style="left:29px;top:137px"></span><span class="hdl edge-v" style="right:29px;top:137px"></span><span class="hdl edge-h" style="top:29px;left:217px"></span><span class="hdl edge-h" style="bottom:29px;left:217px"></span>
+     <span class="badge" style="left:2px;top:120px">69 pt</span>
+    </div>
+    <div class="glass">
+     <span class="gb"><svg class="i"><use href="#i-page"/></svg></span><span class="gb"><svg class="i"><use href="#i-win"/></svg></span><span class="gb on"><svg class="i"><use href="#i-frame"/></svg></span><span class="gb"><svg class="i"><use href="#i-desk"/></svg></span>
+     <span class="sep"></span><span class="gb"><i class="dot g-dusk"></i></span><span class="gb"><svg class="i"><use href="#i-shuffle"/></svg></span>
+    </div>
+   </div>
+   <div class="insp">
+    <div class="card">
+     <div class="hd"><svg class="i sym"><use href="#i-aspect"/></svg><span class="t">Size</span><span class="sp"></span><span class="val">3024 × 1964 px</span></div>
+     <span class="pop">MacBook Pro 14″<svg><use href="#i-updown"/></svg></span>
+     <div class="row"><span class="fld grow">1512</span><span class="dim">×</span><span class="fld grow">982</span><span class="dim">pt</span><span class="pop fit">2×<svg><use href="#i-updown"/></svg></span></div>
+    </div>
+    <div class="card">
+     <div class="hd"><svg class="i sym"><use href="#i-doc"/></svg><span class="t">Page</span><span class="sp"></span><div class="seg sm"><span class="on"><svg class="i"><use href="#i-sun"/></svg></span><span><svg class="i"><use href="#i-moon"/></svg></span></div></div>
+     <div class="sl"><div class="slh"><span>Page Width</span><span class="rv">1,374 px</span></div><div class="track" style="--v:0;--d:0"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+    </div>
+    <div class="card">
+     <div class="hd"><svg class="i sym"><use href="#i-backdrop"/></svg><span class="t">Canvas</span></div>
+     <div class="sg5" data-sw5="dusk"></div>
+     <div class="sl"><div class="slh"><span>Padding</span><span class="rv"><i>Auto ·</i> 69 pt</span></div><div class="track" style="--v:.17;--d:.17"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+     <div class="sl"><div class="slh"><span>Shadow</span><span class="rv">70%</span></div><div class="track" style="--v:.7;--d:.7"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+    </div>
+   </div>
+  </div>
+  <div class="cap"><b>Screen · Canvas, backdrop selected</b>Padding guides and edge handles appear; dragging any edge sets all four and shows the amount in a badge. The Canvas card matches.</div>
+ </div>
+
+ <div class="state wide">
+  <div class="pair">
+   <div class="stage">
+    <div class="art g-tahoe">
+     <div class="menubar"><b></b><b>Safari</b><span>File</span><span>Edit</span><span>View</span><span>History</span><span class="clk">Tue Oct 29  9:41 AM</span></div>
+     <div class="win" style="left:46px;top:40px;width:364px;height:222px"><div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><em class="addr">glamshot.app</em></div><div class="pg"><i class="h"></i><i style="width:80%"></i><i style="width:65%"></i><i class="b"></i><i style="width:72%"></i></div></div>
+     <div class="sel" style="left:44px;top:38px;width:368px;height:226px"></div>
+     <span class="hdl" style="left:40px;top:34px"></span><span class="hdl" style="left:408px;top:34px"></span><span class="hdl" style="left:40px;top:260px"></span><span class="hdl" style="left:408px;top:260px"></span>
+     <span class="badge" style="left:190px;top:270px">1210 × 766</span>
+    </div>
+    <div class="glass">
+     <span class="gb"><svg class="i"><use href="#i-page"/></svg></span><span class="gb"><svg class="i"><use href="#i-win"/></svg></span><span class="gb"><svg class="i"><use href="#i-frame"/></svg></span><span class="gb on"><svg class="i"><use href="#i-desk"/></svg></span>
+     <span class="sep"></span><span class="gb"><i class="dot g-tahoe"></i></span><span class="gb"><svg class="i"><use href="#i-shuffle"/></svg></span>
+    </div>
+   </div>
+   <div class="insp">
+    <div class="card">
+     <div class="hd"><svg class="i sym"><use href="#i-aspect"/></svg><span class="t">Size</span><span class="sp"></span><span class="val">3024 × 1964 px</span></div>
+     <span class="pop">MacBook Pro 14″<svg><use href="#i-updown"/></svg></span>
+     <div class="row"><span class="fld grow">1512</span><span class="dim">×</span><span class="fld grow">982</span><span class="dim">pt</span><span class="pop fit">2×<svg><use href="#i-updown"/></svg></span></div>
+    </div>
+    <div class="card">
+     <div class="hd"><svg class="i sym"><use href="#i-doc"/></svg><span class="t">Page</span><span class="sp"></span><div class="seg sm"><span class="on"><svg class="i"><use href="#i-sun"/></svg></span><span><svg class="i"><use href="#i-moon"/></svg></span></div></div>
+     <div class="sl"><div class="slh"><span>Page Width</span><span class="rv">1,210 px</span></div><div class="track" style="--v:0;--d:0"><i class="fill"></i><i class="tick"></i><b class="knob"></b></div></div>
+    </div>
+    <div class="card">
+     <div class="hd"><svg class="i sym"><use href="#i-win"/></svg><span class="t">Safari Window</span></div>
+     <div class="row"><span class="fld grow">1210</span><span class="dim">×</span><span class="fld grow">766</span><span class="dim">pt</span><span class="ib"><svg class="i"><use href="#i-center"/></svg></span><span class="ib"><svg class="i"><use href="#i-fill"/></svg></span></div>
+     <div class="row"><span class="lab">Address</span><span class="pop fit" style="min-width:118px">Domain<svg><use href="#i-updown"/></svg></span></div>
+     <div class="row"><span class="lab">Tab Bar</span><span class="sw off"></span></div>
+    </div>
+   </div>
+  </div>
+  <div class="cap"><b>Screen · Desktop, window selected</b>Clicking the toolbar selects the window; corner handles resize it with a size badge. The clock and app name are edited in place in the menu bar (outlined while editing). In Full Page, the bar’s Safari and Desktop buttons are disabled.</div>
+ </div>
+</div>
+</section>
+
+<p class="fine">Numbers are illustrative and follow Glamshot’s current rules where they could be checked (Auto padding is 7% of the shorter side, 24–160 pt; the desktop window starts at 80% of the area below the menu bar).</p>
+</main>
+
+<script>
+(function () {
+  var names = ["tahoe","dusk","tidal","bloom","citrus","moss","midnight","ember"];
+  var titles = {tahoe:"Tahoe",dusk:"Dusk",tidal:"Tidal",bloom:"Bloom",citrus:"Citrus",moss:"Moss",midnight:"Midnight",ember:"Ember"};
+  document.querySelectorAll("[data-sw]").forEach(function (el) {
+    el.innerHTML = names.map(function (n) { return '<i class="g-' + n + (n === el.dataset.sw ? ' on' : '') + '" title="' + titles[n] + '"></i>'; }).join("");
+  });
+  document.querySelectorAll("[data-sw5]").forEach(function (el) {
+    el.innerHTML = names.map(function (n) { return '<i class="g-' + n + (n === el.dataset.sw5 ? ' on' : '') + '" title="' + titles[n] + '"></i>'; }).join("")
+      + '<i class="color" title="Color"></i><i class="tool" title="Image…"><svg class="i"><use href="#i-image"/></svg></i>';
+  });
+  var win = function (x, y, w, h) {
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="2.5" fill="#ececf0"/>' +
+      '<path d="M' + x + ' ' + (y + 2.5) + 'a2.5 2.5 0 0 1 2.5-2.5h' + (w - 5) + 'a2.5 2.5 0 0 1 2.5 2.5v3.5h-' + w + 'z" fill="#3a3a3e"/>' +
+      '<circle cx="' + (x + 3) + '" cy="' + (y + 3) + '" r=".9" fill="#ff5f57"/><circle cx="' + (x + 5.6) + '" cy="' + (y + 3) + '" r=".9" fill="#febc2e"/><circle cx="' + (x + 8.2) + '" cy="' + (y + 3) + '" r=".9" fill="#28c840"/>' +
+      '<rect x="' + (x + w * .32) + '" y="' + (y + 1.6) + '" width="' + (w * .36) + '" height="2.8" rx="1.4" fill="#5a5a60"/>' +
+      '<rect x="' + (x + 3) + '" y="' + (y + 9) + '" width="' + (w * .45) + '" height="3" rx="1" fill="#2a2a30"/>' +
+      '<rect x="' + (x + 3) + '" y="' + (y + 14) + '" width="' + (w - 6) + '" height="1.6" rx=".8" fill="#c2c2ca"/>' +
+      '<rect x="' + (x + 3) + '" y="' + (y + 17.5) + '" width="' + (w * .6) + '" height="1.6" rx=".8" fill="#c2c2ca"/>';
+  };
+  var thumbs = {
+    page: '<svg viewBox="0 0 56 36"><rect x="9" y="4" width="38" height="28" rx="2.5" fill="#ececf0"/><rect x="13" y="8" width="17" height="3.4" rx="1" fill="#2a2a30"/><rect x="13" y="14" width="30" height="1.8" rx=".9" fill="#c2c2ca"/><rect x="13" y="18" width="24" height="1.8" rx=".9" fill="#c2c2ca"/><rect x="13" y="22" width="30" height="6" rx="1" fill="#cfd8ff"/></svg>',
+    safari: '<svg viewBox="0 0 56 36">' + win(7, 4, 42, 28) + '</svg>',
+    canvas: '<svg viewBox="0 0 56 36"><rect width="56" height="36" rx="3" fill="url(#gd)"/>' + win(10, 7, 36, 22) + '</svg>',
+    desktop: '<svg viewBox="0 0 56 36"><rect width="56" height="36" rx="3" fill="url(#gt)"/><rect width="56" height="3" fill="rgba(255,255,255,.45)"/>' + win(6, 7, 34, 23) + '</svg>'
+  };
+  var labels = {page:"Page",safari:"Safari",canvas:"Canvas",desktop:"Desktop"};
+  document.querySelectorAll("[data-tiles]").forEach(function (el) {
+    var dis = (el.dataset.dis || "").split(",");
+    el.innerHTML = ["page","safari","canvas","desktop"].map(function (k) {
+      var cls = "tile" + (k === el.dataset.tiles ? " on" : "") + (dis.indexOf(k) >= 0 ? " dis" : "");
+      return '<div class="' + cls + '">' + thumbs[k] + labels[k] + '</div>';
+    }).join("");
+  });
+})();
+</script>
+</body>
+</html>
