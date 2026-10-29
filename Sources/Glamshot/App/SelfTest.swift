@@ -49,6 +49,19 @@ enum SelfTest {
         }
         lazy.close()
 
+        // Page Appearance reaches the page's prefers-color-scheme.
+        let scheme = await Stage(fixtures.appending(path: "scheme.html"), viewport: CGSize(width: 400, height: 300))
+        for (appearance, expected) in [(NSAppearance.Name.aqua, red), (.darkAqua, blue)] {
+            scheme.webView.appearance = NSAppearance(named: appearance)
+            try? await Task.sleep(for: .milliseconds(300))
+            if let capture = await attempt("appearance \(appearance.rawValue)", { try await scheme.photographer.capture(
+                CaptureOptions(width: 400, height: 300, scale: 1, delay: 0)) }) {
+                let pixel = capture.image.pixel(x: 200, y: 150)
+                check("page follows \(appearance == .aqua ? "light" : "dark") appearance", pixel == expected, "\(pixel)")
+            }
+        }
+        scheme.close()
+
         // A window behind other apps (here, ordered out) still finishes a full-page capture.
         let hidden = await Stage(fixtures.appending(path: "bands.html"), viewport: CGSize(width: 800, height: 600))
         hidden.window.orderOut(nil)

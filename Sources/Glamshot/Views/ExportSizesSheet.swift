@@ -13,7 +13,7 @@ struct ExportSizesSheet: View {
             Text("Export Sizes")
                 .font(.headline)
                 .padding([.horizontal, .top], 20)
-            Text("Each checked size is photographed in the current Look and saved to one folder. A desktop backdrop becomes a canvas, since its window sets its own size.")
+            Text("Each checked size is photographed with the current preset and saved to one folder. On a desktop, the window keeps its place and share of the screen at every size.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

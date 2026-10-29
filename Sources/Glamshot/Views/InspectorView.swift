@@ -13,6 +13,7 @@ struct InspectorView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: DMLayout.inspectorSpacing) {
+                LookCard(model: model)
                 OutputCard(model: model)
                 PageCard(model: model)
                 if !model.capture.fullPage {
@@ -21,6 +22,28 @@ struct InspectorView: View {
                 BackdropCard(model: model)
             }
             .padding(DMLayout.inspectorPadding)
+        }
+    }
+}
+
+// MARK: - Look
+
+/// The saved combinations of window and backdrop, in the card's header.
+private struct LookCard: View {
+    let model: ShootModel
+
+    var body: some View {
+        InspectorCard("Preset", systemImage: "sparkles") {
+            Menu {
+                ForEach(Defaults.shared.allLooks) { look in
+                    Toggle(look.name, isOn: Binding(get: { model.currentLookID == look.id }, set: { _ in model.apply(look) }))
+                }
+                Divider()
+                Button("Save Preset…") { model.isNamingLook = true }
+            } label: {
+                Text(model.currentLookID.flatMap { id in Defaults.shared.allLooks.first { $0.id == id }?.name } ?? "Custom")
+            }
+            .fixedSize()
         }
     }
 }
@@ -138,8 +161,11 @@ private struct PageCard: View {
             StackedControl("Appearance") {
                 FilledSegments("Appearance", selection: Binding(
                     get: { model.capture.appearance },
-                    set: { value in model.setCapture(as: "Change Page Appearance") { $0.appearance = value } }
-                ), segments: CaptureOptions.Appearance.allCases.map { .init(value: $0, title: $0.title) })
+                    set: { value in model.setCapture(as: "Change Appearance") { $0.appearance = value } }
+                ), segments: CaptureOptions.Appearance.allCases.map {
+                    .init(value: $0, title: $0.title,
+                          help: "Light or dark mode for the page (sites that support it) and Safari’s window and status bar")
+                })
             }
 
             Text("Lays out like a \(Int(model.layoutSize.width)) × \(Int(model.layoutSize.height)) browser window.")
@@ -192,12 +218,6 @@ private struct WindowCard: View {
                             .init(value: SafariOptions.PhoneBar.minimized, title: "Minimized", help: "As Safari shows it after you scroll")
                         ])
                     }
-                }
-                StackedControl("Appearance") {
-                    FilledSegments("Appearance", selection: Binding(
-                        get: { model.look.safari.appearance },
-                        set: { value in model.setLook(as: "Change Window Appearance") { $0.safari.appearance = value } }
-                    ), segments: SafariOptions.Appearance.allCases.map { .init(value: $0, title: $0.title) })
                 }
                 StackedControl("Address") {
                     FilledSegments("Address", selection: Binding(

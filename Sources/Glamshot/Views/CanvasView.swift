@@ -71,12 +71,7 @@ struct CanvasView: View {
             }
             .scrollDisabled(model.zoom == .fit)
             .overlay(alignment: .top) { fullPageCapsule.padding(.top, 12) }
-            .overlay(alignment: .bottom) {
-                // A desktop shows one screen, so there's nothing to choose there.
-                if model.look.backdrop != .desktop {
-                    captureModeBar.padding(.bottom, DMLayout.overlayMargin)
-                }
-            }
+
         }
         .background(Color(nsColor: .underPageBackgroundColor))
         .dropTarget(for: URL.self, isTargeted: $isDropTargeted) { urls, _ in
@@ -121,24 +116,6 @@ struct CanvasView: View {
                         .offset(x: rect.minX * scale, y: rect.minY * scale)
                 }
             }
-    }
-
-    /// One screen or the whole page: the choice that decides most of the rest, so it floats over
-    /// the canvas where it's always in reach.
-    private var captureModeBar: some View {
-        FloatingBar {
-            Picker("Capture", selection: Binding(
-                get: { model.capture.fullPage },
-                set: { value in model.setCapture(as: value ? "Turn On Full Page" : "Turn Off Full Page") { $0.fullPage = value } }
-            )) {
-                Text("Screen").tag(false)
-                Text("Full Page").tag(true)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .help("One screen at the output size, or the page’s full length (⌥⌘F)")
-        }
     }
 
     @ViewBuilder private var fullPageCapsule: some View {
@@ -264,6 +241,7 @@ struct CanvasMenu: View {
         .disabled(model.lastSavedFile == nil)
         Divider()
         Button("Copy Image") { Task { await model.copyImage() } }
+        Button("Share…") { Task { await model.share() } }
         Divider()
         Button("Export Sizes…") { model.chooseExportSizes() }
         Divider()

@@ -7,7 +7,7 @@ struct SettingsView: View {
         TabView {
             Tab("General", systemImage: "gearshape") { GeneralSettings() }
             Tab("Sizes", systemImage: "rectangle.dashed") { SizesSettings() }
-            Tab("Looks", systemImage: "sparkles") { LooksSettings() }
+            Tab("Presets", systemImage: "sparkles") { LooksSettings() }
         }
         .frame(width: DMLayout.settingsWidth)
     }
@@ -116,9 +116,9 @@ private struct LooksSettings: View {
                     LabeledContent(look.name, value: look.summary)
                 }
             }
-            Section("Your Looks") {
+            Section("Your Presets") {
                 if defaults.customLooks.isEmpty {
-                    Text("Choose Save Look… in a window’s inspector to keep its window, backdrop and background here.")
+                    Text("Choose Save Preset… in a window’s inspector to keep its window, backdrop and background here.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach($defaults.customLooks) { $look in

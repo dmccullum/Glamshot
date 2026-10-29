@@ -45,7 +45,7 @@ struct SizeQuery: EntityStringQuery {
 
 /// A Look as Shortcuts sees it.
 struct LookEntity: AppEntity {
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Glamshot Look"
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Glamshot Preset"
     static let defaultQuery = LookQuery()
 
     let id: String
@@ -83,7 +83,7 @@ struct LookQuery: EntityStringQuery {
 struct TakeGlamshotIntent: AppIntent {
     static let title: LocalizedStringResource = "Take Glamshot"
     static let description = IntentDescription(
-        "Photographs a webpage at a size and frames it in a Look, as an image in Glamshot’s output format.",
+        "Photographs a webpage at a size and frames it with a preset, as an image in Glamshot’s output format.",
         categoryName: "Webpages"
     )
 
@@ -93,14 +93,14 @@ struct TakeGlamshotIntent: AppIntent {
     @Parameter(title: "Size", description: "Leave empty for MacBook Pro 14\".")
     var size: SizeEntity?
 
-    @Parameter(title: "Look", description: "Leave empty for the Look last used in Glamshot.")
+    @Parameter(title: "Preset", description: "Leave empty for the preset last used in Glamshot.")
     var look: LookEntity?
 
     @Parameter(title: "Full Page", default: false)
     var fullPage: Bool
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Take Glamshot of \(\.$url) at \(\.$size) in \(\.$look)") {
+        Summary("Take Glamshot of \(\.$url) at \(\.$size) with \(\.$look)") {
             \.$fullPage
         }
     }

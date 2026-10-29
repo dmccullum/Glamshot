@@ -12,7 +12,7 @@ struct SaveLookSheet: View {
             Section {
                 TextField("Name", text: $name)
             } footer: {
-                Text("Saves this window’s Safari window, backdrop and background. Choose it later from the Look menu.")
+                Text("Saves this window’s Safari window, backdrop and background. Choose it later from the Preset menu.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -23,7 +23,7 @@ struct SaveLookSheet: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save Look") {
+                Button("Save Preset") {
                     model.saveLook(named: name)
                     dismiss()
                 }

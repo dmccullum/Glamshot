@@ -135,21 +135,24 @@ struct ShootToolbar: ToolbarContent {
                 }
             }
         }
-        ToolbarItemGroup(placement: .primaryAction) {
-            Menu {
-                ForEach(Array(Defaults.shared.allLooks.enumerated()), id: \.element.id) { _, look in
-                    Button(look.name) { model.apply(look) }
+        // One screen or the whole page decides most of the rest, so it sits at the top right, as
+        // Granular's mode does. A desktop is always one screen, so it has no choice to show.
+        ToolbarItem(placement: .primaryAction) {
+            if model.look.backdrop != .desktop {
+                Picker("Capture", selection: Binding(
+                    get: { model.capture.fullPage },
+                    set: { value in model.setCapture(as: value ? "Turn On Full Page" : "Turn Off Full Page") { $0.fullPage = value } }
+                )) {
+                    Text("Screen").tag(false).help("One screen at the output size (⌘1)")
+                    Text("Full Page").tag(true).help("The page’s whole length (⌘2)")
                 }
-            } label: {
-                Label("Look", systemImage: "sparkles")
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .help("Photograph one screen or the full page (⌘1, ⌘2)")
             }
-            .help("Choose a Look")
-            Button { Task { await model.copyImage() } } label: { Label("Copy Image", systemImage: "doc.on.doc") }
-                .help("Copy Image (⌘C)")
-                .disabled(!model.hasPage)
-            Button { Task { await model.saveImage() } } label: { Label("Save Image", systemImage: "square.and.arrow.down") }
-                .help("Save Image… (⌘S)")
-                .disabled(!model.hasPage)
+        }
+        ToolbarItem(placement: .primaryAction) {
             Button { showsInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.right") }
                 .help(showsInspector ? "Hide Inspector (⌥⌘I)" : "Show Inspector (⌥⌘I)")
         }

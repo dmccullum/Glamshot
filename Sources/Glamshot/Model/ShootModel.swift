@@ -22,8 +22,6 @@ final class ShootModel {
     private(set) var isLoading = false
     private(set) var canGoBack = false
     private(set) var canGoForward = false
-    /// The page's own background is dark, for Safari's Match Page appearance.
-    private(set) var pageIsDark = false
 
     // MARK: Settings
 
@@ -158,7 +156,6 @@ final class ShootModel {
 
     fileprivate func pageFinishedLoading() {
         applyHiddenSelectors()
-        Task { await readPageBackground() }
         if capture.fullPage { refreshFullPagePreview() }
     }
 
@@ -166,17 +163,6 @@ final class ShootModel {
         let error = error as NSError
         guard error.code != NSURLErrorCancelled else { return }
         alert = AlertContent(title: "Couldn’t Load Page", message: error.localizedDescription)
-    }
-
-    private func readPageBackground() async {
-        let script = """
-            const c = getComputedStyle(document.body).backgroundColor.match(/[\\d.]+/g) || [255,255,255,0];
-            const h = getComputedStyle(document.documentElement).backgroundColor.match(/[\\d.]+/g) || [255,255,255,0];
-            const pick = (c[3] === undefined || +c[3] > 0) ? c : h;
-            return (0.2126 * pick[0] + 0.7152 * pick[1] + 0.0722 * pick[2]) / 255;
-            """
-        let luminance = (try? await webView.callAsyncJavaScript(script, contentWorld: .defaultClient) as? NSNumber)?.doubleValue
-        pageIsDark = (luminance ?? 1) < 0.4
     }
 
     // MARK: Capture settings
@@ -387,7 +373,7 @@ final class ShootModel {
     }
 
     var frameContext: FrameContext {
-        FrameContext(url: url, title: title, pageIsDark: pageIsDark, customAddress: customAddress)
+        FrameContext(url: url, title: title, isDark: capture.appearance == .dark, customAddress: customAddress)
     }
 
     /// The address a Custom address field shows, such as a production domain over a staging page.
@@ -457,6 +443,23 @@ final class ShootModel {
     func chooseExportSizes() {
         guard hasPage else { return }
         isChoosingExportSizes = true
+    }
+
+    /// Renders the shot to a temporary file and offers it to the share menu, at the window's top right.
+    func share() async {
+        guard hasPage, let window, let content = window.contentView else { return }
+        await perform("Preparing Image", failure: "Couldn’t Share Image") {
+            let shot = try await self.render()
+            let format = Defaults.shared.format
+            let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let file = folder.appending(path: self.fileName() + "." + format.fileExtension)
+            try shot.write(to: file, format: format)
+            let picker = NSSharingServicePicker(items: [file])
+            let top = content.isFlipped ? content.bounds.minY + 8 : content.bounds.maxY - 8
+            let anchor = CGRect(x: content.bounds.maxX - 60, y: top, width: 1, height: 1)
+            picker.show(relativeTo: anchor, of: content, preferredEdge: .minY)
+        }
     }
 
     /// Renders every checked size into a folder the person picks.
@@ -557,7 +560,7 @@ final class ShootModel {
         saved.id = UUID().uuidString
         saved.name = trimmed
         Defaults.shared.customLooks.append(saved)
-        status = StatusMessage("Saved Look “\(trimmed)”")
+        status = StatusMessage("Saved Preset “\(trimmed)”")
     }
 
     func shuffleBackground() {

@@ -8,7 +8,8 @@ import UniformTypeIdentifiers
 struct FrameContext {
     var url: URL?
     var title: String
-    var pageIsDark: Bool
+    /// Dark appearance: the page's prefers-color-scheme, and Safari's chrome and status bar.
+    var isDark: Bool
     /// The Custom address text.
     var customAddress: String = ""
 
@@ -41,11 +42,7 @@ struct ShotView<Page: View>: View {
     private var chromeIsDark: Bool { Self.chromeIsDark(look: look, context: context) }
 
     static func chromeIsDark(look: Look, context: FrameContext) -> Bool {
-        switch look.safari.appearance {
-        case .light: false
-        case .dark: true
-        case .matchPage: context.pageIsDark
-        }
+        context.isDark
     }
 
     private var menuBarHasLightText: Bool {

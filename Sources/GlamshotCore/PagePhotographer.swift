@@ -75,6 +75,7 @@ public final class PagePhotographer {
     // MARK: Viewport
 
     private func captureViewport(_ options: CaptureOptions) async throws -> PageCapture {
+        try await run(Self.waitForImagesScript, arguments: ["visibleOnly": true])
         let rect = CGRect(origin: .zero, size: webView.bounds.size)
         let image = try await snapshot(rect, scale: options.scale)
         return PageCapture(image: image, pointSize: rect.size, scale: options.scale)
@@ -114,7 +115,7 @@ public final class PagePhotographer {
         let wasCut = pageHeight > maximumHeight
         let height = min(max(pageHeight, viewport.height), maximumHeight).rounded()
         webView.setFrameSize(CGSize(width: viewport.width, height: height))
-        try await run(Self.waitForImagesScript)
+        try await run(Self.waitForImagesScript, arguments: ["visibleOnly": false])
 
         var tiles: [(image: CGImage, y: Int)] = []
         var y: CGFloat = 0
@@ -231,21 +232,41 @@ public final class PagePhotographer {
         return document.scrollingElement.scrollHeight;
         """
 
+    /// Waits for images to load and decode and for the network to go quiet, within limits, so slow
+    /// and late images make it into the photograph. With `visibleOnly`, images outside the view are
+    /// left alone (lazy ones there would never load). Takes `visibleOnly` as an argument.
     static let waitForImagesScript = """
-        const pending = [...document.images].filter(i => !i.complete)
-            .map(i => new Promise(r => { i.addEventListener('load', r); i.addEventListener('error', r); }));
-        await Promise.race([Promise.all(pending), new Promise(r => setTimeout(r, 3000))]);
-        // Then until nothing new has loaded for 400 ms (at most 4 s), for images scripts add late.
+        const inView = img => {
+            if (!visibleOnly) return true;
+            const r = img.getBoundingClientRect();
+            return r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth && r.width > 0;
+        };
+        const deadline = (ms) => new Promise(r => setTimeout(r, ms));
+        const images = () => [...document.images].filter(inView);
+
+        // Count every resource as it finishes; the timing buffer itself stops at 250 entries.
+        let finished = 0, lastChange = performance.now();
+        const observer = new PerformanceObserver(list => { finished += list.getEntries().length; lastChange = performance.now(); });
+        observer.observe({ type: 'resource', buffered: false });
+
+        const pending = images().filter(i => !i.complete || (i.currentSrc && i.naturalWidth === 0))
+            .map(i => new Promise(r => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); }));
+        await Promise.race([Promise.all(pending), deadline(5000)]);
+
+        // Then until nothing new has finished for 500 ms (at most 4 s), for images scripts add late.
         const start = performance.now();
-        let count = performance.getEntriesByType('resource').length, quietSince = performance.now();
-        while (performance.now() - start < 4000 && performance.now() - quietSince < 400) {
-            await new Promise(r => setTimeout(r, 100));
-            const now = performance.getEntriesByType('resource').length;
-            if (now !== count) { count = now; quietSince = performance.now(); }
-        }
+        lastChange = Math.max(lastChange, start);
+        while (performance.now() - start < 4000 && performance.now() - lastChange < 500) await deadline(100);
+        observer.disconnect();
+
+        // Decoded images draw at once; an undecoded one can come out blank.
+        await Promise.race([
+            Promise.all(images().filter(i => i.complete && i.naturalWidth > 0).map(i => i.decode().catch(() => {}))),
+            deadline(2000)
+        ]);
         await Promise.race([
             new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))),
-            new Promise(r => setTimeout(r, 150))
+            deadline(150)
         ]);
         """
 

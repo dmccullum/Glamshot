@@ -58,6 +58,8 @@ struct GlamshotCommands: Commands {
             Button("Save Image…") { Task { await model?.saveImage() } }
                 .keyboardShortcut("s")
                 .disabled(!hasPage)
+            Button("Share…") { Task { await model?.share() } }
+                .disabled(!hasPage)
             Button("Export Sizes…") { model?.chooseExportSizes() }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(!hasPage)
@@ -120,11 +122,17 @@ struct GlamshotCommands: Commands {
                 .keyboardShortcut("0")
                 .disabled(model == nil || model?.zoom == .fit)
             Divider()
+            Toggle("Screen", isOn: Binding(
+                get: { model?.capture.fullPage == false },
+                set: { _ in model?.setCapture(as: "Turn Off Full Page") { $0.fullPage = false } }
+            ))
+            .keyboardShortcut("1")
+            .disabled(model == nil)
             Toggle("Full Page", isOn: Binding(
                 get: { model?.capture.fullPage ?? false },
-                set: { value in model?.setCapture(as: value ? "Turn On Full Page" : "Turn Off Full Page") { $0.fullPage = value } }
+                set: { _ in model?.setCapture(as: "Turn On Full Page") { $0.fullPage = true } }
             ))
-            .keyboardShortcut("f", modifiers: [.command, .option])
+            .keyboardShortcut("2")
             .disabled(model == nil || model?.look.backdrop == .desktop)
             Divider()
         }
@@ -175,7 +183,7 @@ struct GlamshotCommands: Commands {
             Button("Clear Website Data…") { Task { await clearWebsiteData() } }
         }
 
-        CommandMenu("Look") {
+        CommandMenu("Preset") {
             ForEach(Array(Defaults.shared.allLooks.enumerated()), id: \.element.id) { index, look in
                 let button = Button(look.name) { model?.apply(look) }.disabled(model == nil)
                 if index < 9 {
@@ -225,9 +233,9 @@ struct GlamshotCommands: Commands {
             Button("Fill Desktop") { model?.fillDesktop() }
                 .disabled(model?.look.backdrop != .desktop)
             Divider()
-            Button("Save Look…") { model?.isNamingLook = true }
+            Button("Save Preset…") { model?.isNamingLook = true }
                 .disabled(model == nil)
-            Button("Edit Looks…") { openSettings() }
+            Button("Edit Presets…") { openSettings() }
         }
 
         CommandMenu("Bookmarks") {

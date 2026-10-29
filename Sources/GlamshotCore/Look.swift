@@ -88,18 +88,6 @@ public enum Backdrop: String, Codable, CaseIterable, Sendable {
 }
 
 public struct SafariOptions: Codable, Hashable, Sendable {
-    public enum Appearance: String, Codable, CaseIterable, Sendable {
-        case light, dark, matchPage
-
-        public var title: String {
-            switch self {
-            case .light: "Light"
-            case .dark: "Dark"
-            case .matchPage: "Match Page"
-            }
-        }
-    }
-
     public enum Address: String, Codable, CaseIterable, Sendable {
         /// `custom` shows the window's own text, such as a production domain over a staging page.
         case domain, fullURL, custom, hidden
@@ -138,13 +126,11 @@ public struct SafariOptions: Codable, Hashable, Sendable {
 
     public var device: Device = .automatic
     public var phoneBar: PhoneBar = .full
-    public var appearance: Appearance = .matchPage
     public var address: Address = .domain
     public var showsTabBar: Bool = false
 
-    public init(device: Device = .automatic, appearance: Appearance = .matchPage, address: Address = .domain, showsTabBar: Bool = false) {
+    public init(device: Device = .automatic, address: Address = .domain, showsTabBar: Bool = false) {
         self.device = device
-        self.appearance = appearance
         self.address = address
         self.showsTabBar = showsTabBar
     }
