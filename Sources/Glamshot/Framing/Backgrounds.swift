@@ -23,7 +23,17 @@ enum GradientLibrary {
         Entry(name: "Citrus", stops: [("FFF2B3", 0.2, 0.12), ("FFB347", 0.8, 0.3), ("FF7B54", 0.25, 0.8), ("D9415E", 0.85, 0.9)], topIsDark: false),
         Entry(name: "Moss", stops: [("DCEFC2", 0.2, 0.15), ("6CBF84", 0.75, 0.3), ("2F7D62", 0.3, 0.8), ("123A33", 0.88, 0.88)], topIsDark: false),
         Entry(name: "Midnight", stops: [("22365F", 0.2, 0.15), ("4A3A8C", 0.8, 0.25), ("070D1C", 0.3, 0.85), ("1D3A6E", 0.85, 0.8)], topIsDark: true),
-        Entry(name: "Ember", stops: [("842D43", 0.2, 0.2), ("E57E55", 0.75, 0.35), ("F4D8AB", 0.35, 0.85), ("4A1230", 0.9, 0.9)], topIsDark: true)
+        Entry(name: "Ember", stops: [("842D43", 0.2, 0.2), ("E57E55", 0.75, 0.35), ("F4D8AB", 0.35, 0.85), ("4A1230", 0.9, 0.9)], topIsDark: true),
+        Entry(name: "Glacier", stops: [("F5F8FC", 0.18, 0.15), ("C7DBF5", 0.78, 0.25), ("A9B3EA", 0.3, 0.8), ("E4EEF7", 0.85, 0.85)], topIsDark: false),
+        Entry(name: "Lavender", stops: [("F1E9FF", 0.15, 0.15), ("C3AEF7", 0.75, 0.25), ("9B86E6", 0.3, 0.8), ("F6C9E4", 0.88, 0.85)], topIsDark: false),
+        Entry(name: "Sorbet", stops: [("FFE7D6", 0.18, 0.15), ("FF9FB0", 0.78, 0.25), ("FFC58F", 0.3, 0.8), ("F2708E", 0.88, 0.88)], topIsDark: false),
+        Entry(name: "Sahara", stops: [("F7E9CC", 0.2, 0.15), ("E2B07C", 0.75, 0.3), ("C1704A", 0.3, 0.82), ("7E3F2E", 0.88, 0.9)], topIsDark: false),
+        Entry(name: "Sage", stops: [("EEF1E6", 0.2, 0.15), ("B7C9B0", 0.75, 0.28), ("7F9A7A", 0.32, 0.82), ("DCD3BE", 0.88, 0.85)], topIsDark: false),
+        Entry(name: "Silver", stops: [("F4F5F7", 0.18, 0.15), ("CDD1D8", 0.78, 0.28), ("8F96A3", 0.3, 0.85), ("5B616D", 0.88, 0.9)], topIsDark: false),
+        Entry(name: "Rose", stops: [("FBE6DF", 0.18, 0.15), ("EBB7A8", 0.75, 0.3), ("C88C8E", 0.3, 0.82), ("F4D6C1", 0.88, 0.85)], topIsDark: false),
+        Entry(name: "Aurora", stops: [("0B2236", 0.2, 0.15), ("18C29C", 0.72, 0.3), ("4C47D8", 0.3, 0.78), ("0A1530", 0.88, 0.9)], topIsDark: true),
+        Entry(name: "Plum", stops: [("2B0F3F", 0.2, 0.15), ("7B2470", 0.75, 0.3), ("D8498C", 0.3, 0.82), ("170A2C", 0.88, 0.88)], topIsDark: true),
+        Entry(name: "Electric", stops: [("FF4FB0", 0.18, 0.2), ("7A4FD6", 0.75, 0.25), ("2D8BE6", 0.3, 0.8), ("19D6C6", 0.88, 0.88)], topIsDark: true)
     ]
 
     static func entry(named name: String) -> Entry {

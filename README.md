@@ -28,7 +28,7 @@ The size is the saved image, whichever frame you pick: padding and the window fi
 
 - **Page**: the page alone.
 - **Safari**: the page in Safari's window. Mac sizes get the Mac toolbar, iPad sizes the iPad toolbar, and iPhone sizes the iPhone status bar (9:41, full battery) with the bottom address bar, full or minimized. The address shows the domain, the full URL, custom text or nothing, and there's an optional tab bar.
-- **Canvas**: the page or window on one of eight [Undertone](https://github.com/dmccullum/Undertone) gradients, a solid color or an image, with automatic or custom padding and a shadow. Shuffle rearranges a gradient's colors.
+- **Canvas**: the page or window on one of 18 [Undertone](https://github.com/dmccullum/Undertone) gradients, a solid color or an image, with automatic or custom padding and a shadow. Shuffle rearranges a gradient's colors.
 - **Desktop**: Safari on a Mac desktop with a menu bar whose app name and clock you can edit. The window fills the desktop below the menu bar, inset by the same automatic or custom padding as a canvas.
 
 The page's Light or Dark setting sets its `prefers-color-scheme` and Safari's chrome together. Chrome is drawn at Safari's point sizes, so it stays in proportion to the page at every size and scale.
