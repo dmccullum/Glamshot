@@ -45,6 +45,22 @@ enum SelfTest {
         }
         hero.close()
 
+        // The Shortcuts action's path: an off-screen shoot framed in a canvas Look.
+        let look = Look.builtIns.first { $0.id == "canvas-16x9" }!
+        let options = CaptureOptions(width: 800, height: 600, scale: 2, delay: 0)
+        if let shot = await attempt("headless shoot", {
+            let shoot = try await HeadlessShoot(url: fixtures.appending(path: "bands.html"), viewport: options.viewport)
+            defer { shoot.close() }
+            return try await shoot.model.render(look: look, capture: options)
+        }) {
+            let layout = FrameLayout.make(page: options.viewport, look: look)
+            check("headless shoot size", shot.image.width == Int(layout.canvasSize.width) * 2 && shot.image.height == Int(layout.canvasSize.height) * 2,
+                  "\(shot.image.width) × \(shot.image.height)")
+            let pageCenter = CGPoint(x: layout.pageRect.minX + 10, y: layout.pageRect.minY + 100)
+            check("headless shoot page pixels", shot.image.pixel(x: Int(pageCenter.x) * 2, y: Int(pageCenter.y) * 2) == red,
+                  "\(shot.image.pixel(x: Int(pageCenter.x) * 2, y: Int(pageCenter.y) * 2))")
+        }
+
         print("Self-test: \(checks - failures) of \(checks) checks passed.")
         exit(failures == 0 ? 0 : 1)
     }

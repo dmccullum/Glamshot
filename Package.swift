@@ -15,10 +15,9 @@ let package = Package(
         .package(path: "../Undertone")
     ],
     targets: [
-        .target(
-            name: "GlamshotCore",
-            swiftSettings: [.defaultIsolation(MainActor.self)]
-        ),
+        // Value types and layout math, usable from any isolation (App Intents entities need that).
+        // PagePhotographer is marked @MainActor itself.
+        .target(name: "GlamshotCore"),
         .executableTarget(
             name: "Glamshot",
             dependencies: [

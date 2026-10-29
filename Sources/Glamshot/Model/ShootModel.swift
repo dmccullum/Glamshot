@@ -51,7 +51,11 @@ final class ShootModel {
     @ObservationIgnored var undoManager: UndoManager?
     @ObservationIgnored private var exportTask: Task<Void, Never>?
 
-    init() {
+    /// False for a shoot that shouldn't change the app's remembered settings (a Shortcuts run).
+    @ObservationIgnored private let remembersSettings: Bool
+
+    init(rememberingSettings: Bool = true) {
+        remembersSettings = rememberingSettings
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         configuration.preferences.isElementFullscreenEnabled = true
@@ -248,7 +252,7 @@ final class ShootModel {
             fullPagePreview = nil
             if capture.fullPage { refreshFullPagePreview() }
         }
-        Defaults.shared.capture = capture
+        if remembersSettings { Defaults.shared.capture = capture }
     }
 
     private func lookDidChange(from old: Look) {
@@ -262,7 +266,7 @@ final class ShootModel {
             }
         }
         if look.backdrop == .desktop, capture.fullPage { capture.fullPage = false }
-        Defaults.shared.look = look
+        if remembersSettings { Defaults.shared.look = look }
     }
 
     /// Sizes the web view to the viewport. The host view scales it to fit the window.
