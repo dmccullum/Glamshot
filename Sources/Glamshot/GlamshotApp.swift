@@ -43,6 +43,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let folder = arguments.indices.contains(index + 1) ? arguments[index + 1] : "Tests/Fixtures"
             Task { await SelfTest.run(fixtures: URL(fileURLWithPath: folder)) }
         }
+        if let index = arguments.firstIndex(of: "--capture") {
+            Task { await CommandLineCapture.run(Array(arguments[(index + 1)...])) }
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }

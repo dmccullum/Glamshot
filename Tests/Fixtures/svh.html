@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta name="viewport" content="width=device-width">
+<style>
+  html, body { margin: 0; }
+  /* Like danielm.cc: a padded flex hero at least one small viewport tall, with an
+     absolutely placed photo filling it and a blue background behind. */
+  .hero { background: rgb(0, 0, 255); min-height: 100svh; padding: 144px 40px 32px; display: flex;
+          flex-direction: column; position: relative; overflow: hidden; }
+  .photo { position: absolute; inset: 0; }
+  .photo div { position: absolute; inset: 0; width: 100%; height: 100%; background: rgb(255, 0, 0); }
+  h1 { position: relative; margin: auto 0 10svh; font-size: 80px; color: white; }
+  .rest { height: 2000px; background: rgb(0, 255, 0); }
+</style></head>
+<body><section class="hero"><div class="photo"><div></div></div><h1>Hello</h1></section><div class="rest"></div></body></html>

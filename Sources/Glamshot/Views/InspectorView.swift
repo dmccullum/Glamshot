@@ -43,7 +43,7 @@ private struct LookCard: View {
             } label: {
                 Text(model.currentLookID.flatMap { id in Defaults.shared.allLooks.first { $0.id == id }?.name } ?? "Custom")
             }
-            .fixedSize()
+            .frame(maxWidth: 160)
         }
     }
 }

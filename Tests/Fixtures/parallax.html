@@ -1,0 +1,12 @@
+<!doctype html>
+<html><head><meta name="viewport" content="width=device-width">
+<style>
+  html, body { margin: 0; }
+  /* A scroll-driven parallax like danielm.cc's hero: the photo drifts as the hero scrolls. */
+  @keyframes drift { from { transform: translateY(0); } to { transform: translateY(400px); } }
+  .hero { height: 800px; position: relative; overflow: hidden; background: rgb(0, 0, 255); view-timeline: --hero block; }
+  .photo { position: absolute; inset: 0; background: rgb(255, 0, 0);
+           animation: drift linear both; animation-timeline: --hero; animation-range: exit; }
+  .rest { height: 2000px; background: rgb(0, 255, 0); }
+</style></head>
+<body><section class="hero"><div class="photo"></div></section><div class="rest"></div></body></html>

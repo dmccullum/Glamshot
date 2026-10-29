@@ -2,6 +2,39 @@ import AppKit
 import GlamshotCore
 import WebKit
 
+/// `Glamshot --capture <url> <file.png> [--full-page] [--size WxH] [--scale N]`: photographs a page
+/// with no frame, writes a PNG and quits. For scripts and for checking a site's capture.
+@MainActor
+enum CommandLineCapture {
+    static func run(_ arguments: [String]) async {
+        guard arguments.count >= 2, let url = URL(string: arguments[0]) else {
+            print("Usage: Glamshot --capture <url> <file.png> [--full-page] [--size WxH] [--scale N]")
+            exit(2)
+        }
+        let output = URL(fileURLWithPath: arguments[1])
+        var options = CaptureOptions(fullPage: arguments.contains("--full-page"), delay: 0.5)
+        if let i = arguments.firstIndex(of: "--size"), arguments.indices.contains(i + 1) {
+            let parts = arguments[i + 1].split(separator: "x").compactMap { Int($0) }
+            if parts.count == 2 { options.width = parts[0]; options.height = parts[1] }
+        }
+        if let i = arguments.firstIndex(of: "--scale"), arguments.indices.contains(i + 1), let scale = Int(arguments[i + 1]) {
+            options.scale = scale
+        }
+        let look = Look(name: "Bare", window: .none, backdrop: .none, shadow: 0)
+        do {
+            let shoot = try await HeadlessShoot(url: url, viewport: options.outputSize)
+            defer { shoot.close() }
+            let shot = try await shoot.model.render(look: look, capture: options)
+            try shot.write(to: output, format: .png)
+            print("Wrote \(output.path) (\(shot.image.width) × \(shot.image.height))")
+            exit(0)
+        } catch {
+            print("Couldn’t capture \(url): \(error.localizedDescription)")
+            exit(1)
+        }
+    }
+}
+
 /// `Glamshot --self-test <fixtures>`: photographs the fixture pages inside the running app
 /// (WebKit can't run under `swift test`), checks sizes and pixel colors, prints the results and
 /// quits with 0 when everything passed.
@@ -22,6 +55,8 @@ enum SelfTest {
                 check("viewport \(scale)× first band", capture.image.pixel(x: 10, y: 498 * scale) == red, "\(capture.image.pixel(x: 10, y: 498 * scale))")
                 check("viewport \(scale)× second band", capture.image.pixel(x: 10, y: 502 * scale) == blue, "\(capture.image.pixel(x: 10, y: 502 * scale))")
             }
+            // Scrolled down first, as a person might be; a full page still starts at the top.
+            _ = try? await stage.webView.evaluateJavaScript("scrollTo(0, 1200)")
             if let capture = await attempt("full page \(scale)×", { try await stage.photographer.capture(
                 CaptureOptions(width: 800, height: 600, scale: scale, fullPage: true, delay: 0)) }) {
                 check("full page \(scale)× height", capture.image.height == 5000 * scale, "\(capture.image.height)")
@@ -48,6 +83,31 @@ enum SelfTest {
             }
         }
         lazy.close()
+
+        // A padded hero sized with svh keeps its photo filling it, top to bottom.
+        let svh = await Stage(fixtures.appending(path: "svh.html"), viewport: CGSize(width: 1000, height: 800))
+        if let capture = await attempt("svh hero", { try await svh.photographer.capture(
+            CaptureOptions(width: 1000, height: 800, scale: 1, fullPage: true, delay: 0)) }) {
+            // The hero is 100svh of content plus 176 pt of padding, as in a browser.
+            check("svh hero page height", capture.pointSize.height == 976 + 2000, "\(capture.pointSize.height)")
+            for y in [5, 100, 500, 970] {
+                let pixel = capture.image.pixel(x: 900, y: y)
+                check("svh hero photo at y \(y)", pixel == red, "\(pixel)")
+            }
+            check("svh rest follows", capture.image.pixel(x: 900, y: 985) == Pixel(r: 0, g: 255, b: 0), "\(capture.image.pixel(x: 900, y: 985))")
+        }
+        svh.close()
+
+        // A scroll-driven parallax shows its resting place, not where a page-tall view moves it.
+        let parallax = await Stage(fixtures.appending(path: "parallax.html"), viewport: CGSize(width: 800, height: 600))
+        if let capture = await attempt("parallax", { try await parallax.photographer.capture(
+            CaptureOptions(width: 800, height: 600, scale: 1, fullPage: true, delay: 0)) }) {
+            for y in [10, 400, 790] {
+                let pixel = capture.image.pixel(x: 400, y: y)
+                check("parallax photo at y \(y)", pixel == red, "\(pixel)")
+            }
+        }
+        parallax.close()
 
         // Page Appearance reaches the page's prefers-color-scheme.
         let scheme = await Stage(fixtures.appending(path: "scheme.html"), viewport: CGSize(width: 400, height: 300))

@@ -99,12 +99,15 @@ public final class PagePhotographer {
 
     private func photographWholePage(_ options: CaptureOptions, viewport: CGSize) async throws -> PageCapture {
         try await run(Self.settleMotionScript)
-        try await run(Self.scrollThroughScript)
+        // A full page starts at the top; the person's scroll position comes back afterwards.
+        try await run("scrollTo(0, 0);" + Self.nextFrameBody)
         try await run(Self.recordHeightsScript)
         let maximumHeight = CGFloat(CaptureOptions.maximumPixelHeight / options.scale)
 
-        // Grow the view to the page so everything lays out and lazy images load, then put back
-        // anything sized from the viewport height (a 100vh hero) and measure again.
+        // Grow the view to the page so everything is in view at once (lazy images load and
+        // scroll-reveals fire without scrolling, which would leave headers and parallax in their
+        // scrolled state), then put back anything sized from the viewport height (a 100vh hero)
+        // and measure again.
         // Page heights come back in CSS pixels; a zoomed page draws them smaller in the view.
         let zoom = webView.pageZoom
         var pageHeight = try await number("return document.scrollingElement.scrollHeight") * zoom
@@ -181,18 +184,6 @@ public final class PagePhotographer {
         """
     static let nextFrameScript = nextFrameBody
 
-    /// Scrolls down a screen at a time so scroll-triggered content and lazy images appear.
-    static let scrollThroughScript = """
-        const step = Math.max(200, innerHeight * 0.9);
-        const end = document.scrollingElement.scrollHeight;
-        for (let y = 0; y < end && y < 40000; y += step) {
-            scrollTo(0, y);
-            await new Promise(r => setTimeout(r, 80));
-        }
-        scrollTo(0, 0);
-        await new Promise(r => setTimeout(r, 150));
-        """
-
     /// Content that fades or slides in when scrolled into view would be photographed mid-way, or
     /// not at all. Jump every transition and animation to its end, and load lazy images now.
     static let settleMotionScript = """
@@ -205,6 +196,16 @@ public final class PagePhotographer {
         }`;
         document.documentElement.appendChild(style);
         for (const img of document.querySelectorAll('img[loading="lazy"]')) img.loading = 'eager';
+        // Animations driven by scrolling (parallax, scroll reveals) would play out against the
+        // stretched view's height. Stop them, so the page shows its resting layout.
+        window.__glamshotTimelines = [];
+        for (const el of document.querySelectorAll('*')) {
+            const timeline = getComputedStyle(el).animationTimeline;
+            if (timeline && timeline !== 'auto' && timeline !== 'none') {
+                window.__glamshotTimelines.push([el, el.getAttribute('style')]);
+                el.style.setProperty('animation', 'none', 'important');
+            }
+        }
         """
 
     static let recordHeightsScript = """
@@ -220,6 +221,8 @@ public final class PagePhotographer {
         for (const [el, old] of state.heights) {
             if (el.isConnected && el.offsetHeight > old + 1) {
                 state.pinned.push([el, el.getAttribute('style')]);
+                // offsetHeight includes padding and border, so pin the border box.
+                el.style.setProperty('box-sizing', 'border-box', 'important');
                 el.style.setProperty('height', old + 'px', 'important');
                 el.style.setProperty('min-height', old + 'px', 'important');
                 el.style.setProperty('max-height', old + 'px', 'important');
@@ -272,6 +275,10 @@ public final class PagePhotographer {
 
     static let restoreScript = """
         document.getElementById('glamshot-settle')?.remove();
+        for (const [el, style] of window.__glamshotTimelines || []) {
+            if (style === null) el.removeAttribute('style'); else el.setAttribute('style', style);
+        }
+        delete window.__glamshotTimelines;
         const state = window.__glamshot;
         if (state) {
             for (const [el, style] of state.pinned) {
