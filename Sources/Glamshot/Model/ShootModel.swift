@@ -38,11 +38,8 @@ final class ShootModel {
 
     // MARK: Output
 
-    var shots: [Shot] = []
     var status: StatusMessage?
     var alert: AlertContent?
-    /// Work under way (saving, exporting), shown in the toolbar.
-    var activity: Activity?
     /// A rendered still for full-page mode.
     private(set) var fullPagePreview: PageCapture?
     var zoom: CanvasZoom = .fit
@@ -510,7 +507,7 @@ final class ShootModel {
         await perform("Saving Image", failure: "Couldn’t Save Image") {
             let shot = try await self.render()
             try shot.write(to: destination, format: format)
-            self.addShot(shot, file: destination)
+            self.lastSavedFile = destination
             self.status = StatusMessage(
                 "Saved “\(destination.lastPathComponent)”",
                 leading: .thumbnail(NSImage(cgImage: shot.image, size: .zero)),
@@ -528,7 +525,6 @@ final class ShootModel {
             pasteboard.clearContents()
             pasteboard.writeObjects([NSImage(cgImage: shot.image, size: shot.pointSize)])
             if let png = shot.data(format: .png) { pasteboard.setData(png, forType: .png) }
-            self.addShot(shot, file: nil)
             self.status = StatusMessage("Copied Image", leading: .thumbnail(NSImage(cgImage: shot.image, size: .zero)))
         }
     }
@@ -538,21 +534,37 @@ final class ShootModel {
         isChoosingExportSizes = true
     }
 
-    /// Renders the shot to a temporary file and offers it to the share menu, at the window's top right.
-    func share() async {
-        guard hasPage, let window, let content = window.contentView else { return }
-        await perform("Preparing Image", failure: "Couldn’t Share Image") {
-            let shot = try await self.render()
-            let format = Defaults.shared.format
-            let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let file = folder.appending(path: self.fileName() + "." + format.fileExtension)
-            try shot.write(to: file, format: format)
-            let picker = NSSharingServicePicker(items: [file])
-            let top = content.isFlipped ? content.bounds.minY + 8 : content.bounds.maxY - 8
-            let anchor = CGRect(x: content.bounds.maxX - 60, y: top, width: 1, height: 1)
-            picker.show(relativeTo: anchor, of: content, preferredEdge: .minY)
+    /// The share picker on screen; it holds the item until a service takes it.
+    @ObservationIgnored private var sharePicker: ShotSharePicker?
+
+    /// Shows the share picker at `view` (the toolbar's Share button), or at the window's top right.
+    /// Save Image…, Copy Image and Export Sizes… lead the list, as Export… does in Granular, and
+    /// the image is rendered only when a service asks for it.
+    func share(from view: NSView? = nil) {
+        guard hasPage, let anchor = view ?? window?.contentView else { return }
+        let picker = ShotSharePicker(model: self, name: fileName())
+        sharePicker = picker
+        if view != nil {
+            picker.show(relativeTo: anchor.bounds, of: anchor)
+        } else {
+            let top = anchor.isFlipped ? anchor.bounds.minY + 8 : anchor.bounds.maxY - 8
+            picker.show(relativeTo: CGRect(x: anchor.bounds.maxX - 60, y: top, width: 1, height: 1), of: anchor)
         }
+    }
+
+    /// Renders the shot to a file in its own temporary folder, for sharing and dragging.
+    func renderToTemporaryFile() async throws -> URL {
+        let format = Defaults.shared.format
+        let shot = try await render()
+        let folder = FileManager.default.temporaryDirectory.appending(path: "Glamshot Shares").appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appending(path: fileName() + "." + format.fileExtension)
+        try shot.write(to: file, format: format)
+        return file
+    }
+
+    fileprivate func sharePickerFinished(_ picker: ShotSharePicker) {
+        if sharePicker === picker { sharePicker = nil }
     }
 
     /// Renders every checked size into a folder the person picks.
@@ -575,7 +587,7 @@ final class ShootModel {
             var written: [URL] = []
             for (index, preset) in presets.enumerated() {
                 if Task.isCancelled { break }
-                activity = Activity(title: "Exporting \(index + 1) of \(presets.count)", progress: Double(index) / Double(presets.count))
+                status = .progress("Exporting \(index + 1) of \(presets.count)", cancel: .init("Cancel", help: "⌘.") { [weak self] in self?.cancel() })
                 var options = capture
                 options.apply(preset)
                 let look = self.look
@@ -583,7 +595,7 @@ final class ShootModel {
                     let shot = try await render(look: look, capture: options)
                     let url = folder.appending(path: fileName(for: look, sizeName: preset.name, capture: options) + "." + format.fileExtension)
                     try shot.write(to: url, format: format)
-                    addShot(shot, file: url)
+                    lastSavedFile = url
                     written.append(url)
                 } catch is CancellationError {
                     break
@@ -592,7 +604,7 @@ final class ShootModel {
                     break
                 }
             }
-            activity = nil
+            status = nil
             applyViewport()
             if !written.isEmpty {
                 status = StatusMessage(
@@ -612,30 +624,21 @@ final class ShootModel {
         exportTask?.cancel()
     }
 
+    /// Runs work with its progress in the status capsule, where its result then shows.
     private func perform(_ activityTitle: String, failure: String, _ work: @escaping () async throws -> Void) async {
-        activity = Activity(title: activityTitle, progress: nil)
-        defer { activity = nil }
+        status = .progress(activityTitle)
         do {
             try await work()
+            if status?.kind == .progress { status = nil }
         } catch {
+            status = nil
             let error = error as? CaptureError
             alert = AlertContent(title: failure, message: [error?.errorDescription, error?.recoverySuggestion].compactMap { $0 }.joined(separator: " "))
         }
     }
 
-    private func addShot(_ shot: RenderedShot, file: URL?) {
-        shots.insert(Shot(image: shot.image, pointSize: shot.pointSize, file: file, name: fileName()), at: 0)
-    }
-
-    /// The newest shot saved to disk, for Show in Finder.
-    var lastSavedFile: URL? { shots.lazy.compactMap(\.file).first }
-
-    func deleteShot(_ shot: Shot) {
-        guard let index = shots.firstIndex(of: shot) else { return }
-        shots.remove(at: index)
-        undoManager?.registerUndo(withTarget: self) { $0.shots.insert(shot, at: min(index, $0.shots.count)) }
-        undoManager?.setActionName("Remove Shot")
-    }
+    /// The newest image saved to disk, for Show in Finder.
+    private(set) var lastSavedFile: URL?
 
     // MARK: Looks
 
@@ -661,25 +664,8 @@ struct AlertContent: Identifiable {
     var message: String
 }
 
-struct Activity: Equatable {
-    var title: String
-    /// 0…1, or nil while the length isn't known.
-    var progress: Double?
-}
-
 enum CanvasZoom: Equatable {
     case fit, actual
-}
-
-/// A saved or copied image, kept in the window's shots tray for this session.
-struct Shot: Identifiable, Equatable {
-    let id = UUID()
-    let image: CGImage
-    let pointSize: CGSize
-    let file: URL?
-    let name: String
-
-    static func == (a: Shot, b: Shot) -> Bool { a.id == b.id }
 }
 
 private final class NavigationDelegate: NSObject, WKNavigationDelegate {
@@ -698,3 +684,60 @@ private final class NavigationDelegate: NSObject, WKNavigationDelegate {
     }
 }
 
+
+/// The standard share picker for a shot, led by Save Image…, Copy Image and Export Sizes…. The shot
+/// is rendered only when a service asks for the file.
+final class ShotSharePicker: NSObject, @preconcurrency NSSharingServicePickerDelegate {
+    private let picker: NSSharingServicePicker
+    private weak var model: ShootModel?
+
+    init(model: ShootModel, name: String) {
+        let provider = NSItemProvider()
+        provider.suggestedName = name
+        let type = Defaults.shared.format.contentType
+        provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { [weak model] completion in
+            let progress = Progress(totalUnitCount: 1)
+            Task { @MainActor in
+                defer { progress.completedUnitCount = 1 }
+                do {
+                    guard let model else { throw CocoaError(.userCancelled) }
+                    completion(try await model.renderToTemporaryFile(), false, nil)
+                } catch {
+                    completion(nil, false, error)
+                }
+            }
+            return progress
+        }
+        let icon = NSImage(systemSymbolName: "photo", accessibilityDescription: nil)
+        picker = NSSharingServicePicker(items: [NSPreviewRepresentingActivityItem(item: provider, title: name, image: nil, icon: icon)])
+        self.model = model
+        super.init()
+        picker.delegate = self
+    }
+
+    func show(relativeTo rect: CGRect, of view: NSView) {
+        picker.show(relativeTo: rect, of: view, preferredEdge: .minY)
+    }
+
+    func sharingServicePicker(
+        _ sharingServicePicker: NSSharingServicePicker,
+        sharingServicesForItems items: [Any],
+        proposedSharingServices proposedServices: [NSSharingService]
+    ) -> [NSSharingService] {
+        func service(_ title: String, _ symbol: String, _ action: @escaping (ShootModel) -> Void) -> NSSharingService {
+            NSSharingService(title: title, image: NSImage(systemSymbolName: symbol, accessibilityDescription: nil) ?? NSImage(),
+                             alternateImage: nil) { [weak model] in
+                MainActor.assumeIsolated { if let model { action(model) } }
+            }
+        }
+        return [
+            service("Save Image…", "square.and.arrow.down") { model in Task { await model.saveImage() } },
+            service("Copy Image", "doc.on.doc") { model in Task { await model.copyImage() } },
+            service("Export Sizes…", "square.stack") { model in model.chooseExportSizes() }
+        ] + proposedServices
+    }
+
+    func sharingServicePicker(_ sharingServicePicker: NSSharingServicePicker, didChoose service: NSSharingService?) {
+        model?.sharePickerFinished(self)
+    }
+}

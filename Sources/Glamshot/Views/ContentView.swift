@@ -6,17 +6,13 @@ import SwiftUI
 struct ContentView: View {
     @State private var model = ShootModel()
     @State private var showsInspector = true
-    @SceneStorage("showsShotsTray") private var showsShotsTray = true
     @SceneStorage("address") private var savedAddress = ""
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         VStack(spacing: 0) {
             CanvasView(model: model)
-            if showsShotsTray, !model.shots.isEmpty {
-                Divider()
-                ShotsTray(model: model)
-            }
+
         }
         .statusCapsule($model.status)
         .inspector(isPresented: $showsInspector) {
@@ -28,7 +24,6 @@ struct ContentView: View {
         .navigationSubtitle(subtitle)
         .focusedSceneValue(\.shoot, model)
         .focusedSceneValue(\.inspectorShown, $showsInspector)
-        .focusedSceneValue(\.shotsTrayShown, $showsShotsTray)
         .background(WindowReader { window in model.window = window })
         .onAppear {
             model.undoManager = undoManager
@@ -117,21 +112,6 @@ struct ShootToolbar: ToolbarContent {
             .padding(.horizontal, 12)
             .frame(minWidth: 320, idealWidth: 460, maxWidth: 560)
         }
-        ToolbarItem(placement: .status) {
-            if let activity = model.activity {
-                HStack(spacing: 8) {
-                    if let progress = activity.progress {
-                        ProgressView(value: progress).frame(width: 80)
-                    } else {
-                        ProgressView().controlSize(.small)
-                    }
-                    Text(activity.title).font(.callout).foregroundStyle(.secondary)
-                    if model.canCancel {
-                        Button("Cancel") { model.cancel() }.controlSize(.small)
-                    }
-                }
-            }
-        }
         // One screen or the whole page decides most of the rest, so it sits at the top right, as
         // Granular's mode does. A desktop is always one screen, so it has no choice to show.
         ToolbarItem(placement: .primaryAction) {
@@ -149,9 +129,47 @@ struct ShootToolbar: ToolbarContent {
                 .help("Photograph one screen or the full page (⌘1, ⌘2)")
             }
         }
+        // Save, copy, export and share, to the right of the mode, as in Granular.
         ToolbarItem(placement: .primaryAction) {
-            Button { showsInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.right") }
-                .help(showsInspector ? "Hide Inspector (⌥⌘I)" : "Show Inspector (⌥⌘I)")
+            ShareButton(model: model)
         }
+    }
+}
+
+/// Opens the share picker under itself: Save Image…, Copy Image and Export Sizes…, then sharing.
+struct ShareButton: View {
+    let model: ShootModel
+    @State private var anchor = ShareAnchor()
+
+    var body: some View {
+        Button {
+            model.share(from: anchor.view)
+        } label: {
+            Label("Share", systemImage: "square.and.arrow.up")
+                .labelStyle(.iconOnly)
+        }
+        .background { ShareAnchorView(anchor: anchor) }
+        .disabled(!model.hasPage)
+        .help("Save, copy, export or share the image")
+        .accessibilityLabel("Share or Save")
+    }
+}
+
+/// The view the share picker points at.
+final class ShareAnchor {
+    weak var view: NSView?
+}
+
+private struct ShareAnchorView: NSViewRepresentable {
+    let anchor: ShareAnchor
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        anchor.view = view
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        anchor.view = view
     }
 }

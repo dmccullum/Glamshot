@@ -7,13 +7,11 @@ import WebKit
 extension FocusedValues {
     @Entry var shoot: ShootModel?
     @Entry var inspectorShown: Binding<Bool>?
-    @Entry var shotsTrayShown: Binding<Bool>?
 }
 
 struct GlamshotCommands: Commands {
     @FocusedValue(\.shoot) private var model
     @FocusedValue(\.inspectorShown) private var inspectorShown
-    @FocusedValue(\.shotsTrayShown) private var shotsTrayShown
     @Environment(\.openWindow) private var openWindow
     private let recents = RecentPages.shared
     private let safari = SafariBridge.shared
@@ -57,7 +55,7 @@ struct GlamshotCommands: Commands {
             Button("Save Image…") { Task { await model?.saveImage() } }
                 .keyboardShortcut("s")
                 .disabled(!hasPage)
-            Button("Share…") { Task { await model?.share() } }
+            Button("Share…") { model?.share() }
                 .disabled(!hasPage)
             Button("Export Sizes…") { model?.chooseExportSizes() }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
@@ -106,10 +104,6 @@ struct GlamshotCommands: Commands {
             }
             .keyboardShortcut("i", modifiers: [.command, .option])
             .disabled(inspectorShown == nil)
-            Button(shotsTrayShown?.wrappedValue == true ? "Hide Shots Tray" : "Show Shots Tray") {
-                shotsTrayShown?.wrappedValue.toggle()
-            }
-            .disabled(shotsTrayShown == nil)
             Divider()
             Button("Zoom In") { model?.zoom = .actual }
                 .keyboardShortcut("+")

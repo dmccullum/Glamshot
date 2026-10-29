@@ -261,7 +261,7 @@ struct CanvasMenu: View {
         .disabled(model.lastSavedFile == nil)
         Divider()
         Button("Copy Image") { Task { await model.copyImage() } }
-        Button("Share…") { Task { await model.share() } }
+        Button("Share…") { model.share() }
         Divider()
         Button("Export Sizes…") { model.chooseExportSizes() }
         Divider()
