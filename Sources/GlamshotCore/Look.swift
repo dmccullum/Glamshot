@@ -48,7 +48,7 @@ public struct Look: Codable, Hashable, Identifiable, Sendable {
         Look(id: "canvas-4x5", name: "Safari on Canvas 4:5", window: .safari, backdrop: .canvas,
              canvas: CanvasOptions(aspect: .r4x5, autoBalance: true)),
         Look(id: "canvas-16x9", name: "Safari on Canvas 16:9", window: .safari, backdrop: .canvas,
-             canvas: CanvasOptions(aspect: .r16x9, autoBalance: true), background: .gradient(name: "Lagoon", seed: 0)),
+             canvas: CanvasOptions(aspect: .r16x9, autoBalance: true), background: .gradient(name: "Tidal", seed: 0)),
         Look(id: "desktop", name: "Desktop", window: .safari, backdrop: .desktop, background: .gradient(name: "Bloom", seed: 0))
     ]
 }

@@ -10,7 +10,9 @@ let package = Package(
     ],
     dependencies: [
         // The family's shared package, checked out next to this repository.
-        .package(path: "../DMKit")
+        .package(path: "../DMKit"),
+        // Undertone's gradient renderer, for canvas and desktop backgrounds.
+        .package(path: "../Undertone")
     ],
     targets: [
         .target(
@@ -21,7 +23,8 @@ let package = Package(
             name: "Glamshot",
             dependencies: [
                 "GlamshotCore",
-                .product(name: "DMKit", package: "DMKit")
+                .product(name: "DMKit", package: "DMKit"),
+                .product(name: "UndertoneKit", package: "Undertone")
             ],
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),

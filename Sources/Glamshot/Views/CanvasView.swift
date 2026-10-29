@@ -202,7 +202,7 @@ struct CanvasMenu: View {
         Divider()
         Button("Copy Image") { Task { await model.copyImage() } }
         Divider()
-        Button("Export Sizes…") { Task { await model.exportSizes() } }
+        Button("Export Sizes…") { model.chooseExportSizes() }
         Divider()
         Button("Reload Page") { model.reload() }
     }

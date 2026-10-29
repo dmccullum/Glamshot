@@ -30,7 +30,11 @@ final class ShootModel {
     var capture: CaptureOptions { didSet { captureDidChange(from: oldValue) } }
     var look: Look { didSet { lookDidChange(from: oldValue) } }
     /// Sizes checked for Export Sizes….
-    var exportSizeIDs: Set<String> = [SizePreset.macBookPro14.id]
+    var exportSizeIDs: Set<String> = [SizePreset.macBookPro14.id] {
+        didSet { UserDefaults.standard.set(Array(exportSizeIDs), forKey: "exportSizeIDs") }
+    }
+    /// The Export Sizes sheet is up.
+    var isChoosingExportSizes = false
 
     // MARK: Output
 
@@ -65,6 +69,7 @@ final class ShootModel {
         look = defaults.look
         webView.customUserAgent = capture.userAgent.string
         webView.appearance = NSAppearance(named: capture.appearance == .dark ? .darkAqua : .aqua)
+        if let saved = UserDefaults.standard.stringArray(forKey: "exportSizeIDs") { exportSizeIDs = Set(saved) }
         webView.navigationDelegate = navigation
         navigation.model = self
         observe()
@@ -392,6 +397,11 @@ final class ShootModel {
             self.addShot(shot, file: nil)
             self.status = StatusMessage("Copied Image", leading: .thumbnail(NSImage(cgImage: shot.image, size: .zero)))
         }
+    }
+
+    func chooseExportSizes() {
+        guard hasPage else { return }
+        isChoosingExportSizes = true
     }
 
     /// Renders every checked size into a folder the person picks.

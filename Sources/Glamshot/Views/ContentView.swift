@@ -11,19 +11,14 @@ struct ContentView: View {
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
-        NavigationSplitView {
-            SidebarView(model: model)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 320)
-        } detail: {
-            VStack(spacing: 0) {
-                CanvasView(model: model)
-                if showsShotsTray, !model.shots.isEmpty {
-                    Divider()
-                    ShotsTray(model: model)
-                }
+        VStack(spacing: 0) {
+            CanvasView(model: model)
+            if showsShotsTray, !model.shots.isEmpty {
+                Divider()
+                ShotsTray(model: model)
             }
-            .statusCapsule($model.status)
         }
+        .statusCapsule($model.status)
         .inspector(isPresented: $showsInspector) {
             InspectorView(model: model)
                 .inspectorColumnWidth(min: 260, ideal: 290, max: 360)
@@ -37,14 +32,23 @@ struct ContentView: View {
         .background(WindowReader { window in model.window = window })
         .onAppear {
             model.undoManager = undoManager
-            if model.url == nil, let url = URL(string: savedAddress), !savedAddress.isEmpty { model.load(url) }
+            if model.url == nil, PendingOpen.shared.urls.isEmpty, let url = URL(string: savedAddress), !savedAddress.isEmpty { model.load(url) }
         }
         .onChange(of: undoManager) { model.undoManager = undoManager }
+        // Without a split view the subtitle modifier only takes its first value.
+        .onChange(of: subtitle) { model.window?.subtitle = subtitle }
+        .onChange(of: PendingOpen.shared.urls, initial: true) {
+            guard model.window?.isKeyWindow ?? true, let url = PendingOpen.shared.take() else { return }
+            model.load(url)
+        }
         .onChange(of: model.url) { savedAddress = model.url?.absoluteString ?? "" }
+        .sheet(isPresented: $model.isChoosingExportSizes) {
+            ExportSizesSheet(model: model)
+        }
         .alert(item: $model.alert) { alert in
             Alert(title: Text(alert.title), message: Text(alert.message))
         }
-        .frame(minWidth: 900, minHeight: 560)
+        .frame(minWidth: 760, minHeight: 520)
     }
 
     private var subtitle: String {

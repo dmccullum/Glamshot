@@ -28,6 +28,23 @@
 	<string>public.app-category.graphics-design</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 Daniel McCullum. Licensed under GPL-3.0.</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Web Page</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.html</string>
+				<string>com.apple.webarchive</string>
+				<string>com.apple.web-internet-location</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Glamshot reads the address of Safari’s front page and open tabs so you can photograph them.</string>
 	<key>NSHighResolutionCapable</key>

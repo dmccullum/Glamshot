@@ -35,6 +35,24 @@ private struct SizeCard: View {
         InspectorCard("Size", systemImage: "rectangle.dashed") {
             EmptyView()
         } content: {
+            Picker("Size", selection: Binding(
+                get: { model.currentPreset?.id ?? "" },
+                set: { id in
+                    if let preset = Defaults.shared.allPresets.first(where: { $0.id == id }) { model.choose(preset) }
+                }
+            )) {
+                if model.currentPreset == nil { Text("Custom").tag("") }
+                ForEach(SizePreset.Group.allCases, id: \.self) { group in
+                    let presets = Defaults.shared.allPresets.filter { $0.group == group }
+                    if !presets.isEmpty {
+                        Section(group.title) {
+                            ForEach(presets) { Text("\($0.name)  \($0.dimensions)").tag($0.id) }
+                        }
+                    }
+                }
+            }
+            .labelsHidden()
+            .disabled(isDesktop)
             HStack(spacing: 8) {
                 TextField("Width", text: $width).onSubmit(commit)
                 Text("×").foregroundStyle(.secondary)

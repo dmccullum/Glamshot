@@ -140,12 +140,21 @@ enum ShotRenderer {
     @MainActor
     static func render(page: PageCapture, look: Look, context: FrameContext) async throws -> CGImage {
         let layout = FrameLayout.make(page: page.pointSize, look: look)
+        var background: CGImage?
+        if look.backdrop != .none, case .gradient(let name, let seed) = look.background {
+            let scale = CGFloat(page.scale)
+            background = try await GradientCache.render(
+                name: name, seed: seed,
+                pixelSize: CGSize(width: layout.canvasSize.width * scale, height: layout.canvasSize.height * scale)
+            )
+        }
         let view = ShotView(layout: layout, look: look, context: context) {
             Image(decorative: page.image, scale: CGFloat(page.scale))
                 .resizable()
                 .interpolation(.high)
         }
         .environment(\.colorScheme, .light)
+        .environment(\.renderedBackground, background)
         let renderer = ImageRenderer(content: view)
         renderer.scale = CGFloat(page.scale)
         renderer.proposedSize = ProposedViewSize(layout.canvasSize)

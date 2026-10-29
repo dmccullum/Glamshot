@@ -58,9 +58,9 @@ struct GlamshotCommands: Commands {
             Button("Save Image…") { Task { await model?.saveImage() } }
                 .keyboardShortcut("s")
                 .disabled(!hasPage)
-            Button("Export Sizes…") { Task { await model?.exportSizes() } }
+            Button("Export Sizes…") { model?.chooseExportSizes() }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
-                .disabled(!hasPage || (model?.exportSizeIDs.isEmpty ?? true))
+                .disabled(!hasPage)
             Divider()
             Button("Show in Finder") {
                 if let file = model?.lastSavedFile { NSWorkspace.shared.activateFileViewerSelecting([file]) }
@@ -309,9 +309,23 @@ enum StylePasteboard {
     static var look: Look?
 }
 
-/// Pages asked for when no window was open; the next window opens them.
+/// Pages opened from Finder, the Dock or a menu with no window to take them. The key window,
+/// or the next one to open, loads them.
 @MainActor
+@Observable
 final class PendingOpen {
     static let shared = PendingOpen()
     var urls: [URL] = []
+
+    func open(_ new: [URL]) {
+        urls.append(contentsOf: new)
+        if NSApp.windows.contains(where: { $0.isVisible && $0.identifier?.rawValue.hasPrefix("shoot") == true }) == false {
+            NSApp.sendAction(Selector(("newWindowForTab:")), to: nil, from: nil)
+        }
+    }
+
+    /// The next page to open, removed from the queue.
+    func take() -> URL? {
+        urls.isEmpty ? nil : urls.removeFirst()
+    }
 }
