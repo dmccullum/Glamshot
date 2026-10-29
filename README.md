@@ -1,30 +1,72 @@
 # Glamshot
 
-A Mac app that photographs webpages at device sizes and frames them for mockups.
+A Mac app that photographs webpages at device sizes and frames them for mockups: the bare page, Safari's window, Safari on a gradient canvas, or Safari on a Mac desktop.
 
-- **Output size**: MacBook Air, MacBook Pro, iMac, Studio Display, 1080p, 1440p, iPad, iPhone, social sizes (1080 × 1080, 1080 × 1350, 1080 × 1920, 1920 × 1080), or your own width × height, at 1×, 2× or 3×. The saved image is that size; the window and backdrop take their room from it and the page gets the rest.
-- **Page zoom**: 50–100%. At 80%, a page drawn in 1,000 points lays out like a 1,250-point browser window.
-- **Capture**: one screen at the viewport size (for a laptop or phone mockup), or the full scrolling length of the page as one image. Elements sized from the viewport height, such as a 100vh hero, keep their on-screen height in a full-page capture.
-- **Window**: none, or Safari-style window chrome drawn at Safari's real point size, in Light, Dark, or matched to the page.
-- **Backdrop**: none (a transparent PNG with the window's shadow), a canvas with automatic or custom padding, or a Mac desktop with a menu bar and a window you can drag and resize. Canvas and desktop backgrounds are Undertone gradients, a color, or an image.
-- **Output**: PNG, JPEG or HEIC. Save (⌘S), copy (⌘C), drag out of the window, or export every checked size at once (⇧⌘E).
+![danielm.cc at MacBook Pro 14", in Safari on a gradient canvas](docs/images/canvas.png)
 
-The page in the window is live: sign in, dismiss banners and scroll before you save, and the image shows what you see.
+The page in the window is live. Sign in, close banners and scroll to the part you want, then save; the image shows what the window shows.
+
+## Sizes
+
+- **Mac**: MacBook Air 13" and 15", MacBook Pro 14" and 16", iMac 24", Studio Display.
+- **Displays**: 1080p and 1440p.
+- **iPad**: iPad mini, iPad Air 11" and 13", iPad Pro 11" and 13".
+- **iPhone**: iPhone 18 Pro, 18 Pro Max, 17, Air and 17e. Pages get Safari on iPhone's user agent, so sites serve their phone layout.
+- **Social**: 1080 × 1080, 1080 × 1350, 1080 × 1920 and 1920 × 1080. The frame fits inside the image.
+- **Custom**: any width × height from 200 to 8,000 points.
+
+Each size saves at 1×, 2× or 3×. In Settings › Sizes you can rename, resize, reorder or delete any size, built-in or your own, and Restore Built-In Sizes puts the built-ins back.
+
+**Page Width** lays the page out wider than the screen, up to twice its width, for pages that look cramped at the device's own size.
+
+## Screen or full page
+
+- **Screen** (⌘1) photographs what's in the window at the size's resolution.
+- **Full Page** (⌘2) photographs the whole scrolling length as one image, up to 32,768 pixels tall. Before it does, Glamshot loads lazy images, finishes fade-ins and scroll animations, and keeps viewport-height sections, such as a 100vh hero, at their on-screen height.
+
+## Frames
+
+- **Page**: the page alone.
+- **Safari**: the page in Safari's window. Mac sizes get the Mac toolbar, iPad sizes the iPad toolbar, and iPhone sizes the iPhone status bar (9:41, full battery) with the bottom address bar, full or minimized. The address shows the domain, the full URL, custom text or nothing, and there's an optional tab bar.
+- **Canvas**: the page or window on one of eight [Undertone](https://github.com/dmccullum/Undertone) gradients, a solid color or an image, with automatic or custom padding and a shadow. Shuffle rearranges a gradient's colors.
+- **Desktop**: Safari on a Mac desktop with a menu bar whose app name and clock you can edit. Drag the window to move or resize it; it snaps to the center. Center Window and Fill Desktop are in the Frame menu.
+
+The page's Light or Dark setting sets its `prefers-color-scheme` and Safari's chrome together. Chrome is drawn at Safari's point sizes, so it stays in proportion to the page at every size and scale.
+
+## Saving
+
+- Save Image… (⌘S), Copy Image (⌘C), Share…, or drag the canvas into another app.
+- Export Sizes… (⇧⌘E) saves every size you check to one folder.
+- PNG, JPEG or HEIC. File names come from a template of tokens: Domain, Page Title, Size, Dimensions, Frame and Date.
+- Copy Style and Paste Style (⌥⌘C, ⌥⌘V) copy the frame and all its settings, such as background, padding and address, between windows.
+- Every change in the inspector or on the canvas can be undone.
+
+## Pages
+
+Type an address (⌘L), open a local `.html`, `.webarchive` or `.webloc` file (⌘O), drop a link on the window, or bring in Safari's front page (⌥⌘L), one of its open tabs, or a bookmark. Hide Elements… hides parts of a page by CSS selector, such as a cookie banner. Wait After Loading in Settings gives animations and late content up to five seconds to finish before the photo.
+
+## Shortcuts and the command line
+
+The **Take Glamshot** action in Shortcuts takes a web address, a size and Full Page, and returns the image framed with the current settings.
+
+From Terminal:
+
+```sh
+Glamshot.app/Contents/MacOS/Glamshot --capture https://example.com out.png \
+  [--size 1512x982] [--scale 2] [--full-page] [--safari] [--canvas | --desktop] [--dark]
+```
 
 ## Building
 
-Requires macOS 26 and Xcode 26 or later. Glamshot depends on [DMKit](../DMKit) and [Undertone](https://github.com/dmccullum/Undertone)'s `UndertoneKit`, checked out next to this repository.
+Requires macOS 26 and Xcode 26. Glamshot builds against two packages checked out next to this repository: DMKit, the shared components of the author's Mac apps, and [Undertone](https://github.com/dmccullum/Undertone)'s `UndertoneKit`.
 
 ```sh
 swift build
-swift test
-Scripts/build-app.sh && open build/Glamshot.app
-build/Glamshot.app/Contents/MacOS/Glamshot --self-test Tests/Fixtures   # photographs the fixture pages and checks pixels
-build/Glamshot.app/Contents/MacOS/Glamshot --capture https://example.com out.png --full-page --size 1512x982 --scale 2
+swift test                                                               # layout, naming and option logic
+Scripts/build-app.sh && open build/Glamshot.app                          # or double-click Build Glamshot.command
+build/Glamshot.app/Contents/MacOS/Glamshot --self-test Tests/Fixtures    # photographs the fixture pages and checks pixels
 ```
-
-Or double-click `Build Glamshot.command`.
 
 ## License
 
-GPL-3.0. See [LICENSE](LICENSE).
+Copyright © 2026 Daniel McCullum. Glamshot is free software under the [GNU General Public License v3.0](LICENSE): you may use, change and share it, and anything you distribute that's built from it must be shared under the same license.
