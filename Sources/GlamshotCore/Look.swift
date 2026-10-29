@@ -180,7 +180,7 @@ public struct SafariOptions: Codable, Hashable, Sendable {
     }
 }
 
-/// The page or window on a background, with room around it.
+/// The page or window on a background, with room around it. A desktop uses the same padding.
 public struct CanvasOptions: Codable, Hashable, Sendable {
     /// Picks the padding from the output size.
     public var autoPadding: Bool = true
@@ -196,15 +196,9 @@ public struct CanvasOptions: Codable, Hashable, Sendable {
     }
 }
 
-/// A Mac desktop with a menu bar and the window on it. The output size is the desktop's size; the
-/// window is kept as a share of it, so a Look fits any output.
+/// A Mac desktop's menu bar. The output size is the desktop's size, and the window fills it below
+/// the menu bar, inset by the canvas padding.
 public struct DesktopOptions: Codable, Hashable, Sendable {
-    /// The window's outer size as a fraction of the area below the menu bar.
-    public var widthFraction: CGFloat = 0.8
-    public var heightFraction: CGFloat = 0.8
-    /// The window's center as a fraction of the area below the menu bar.
-    public var centerX: CGFloat = 0.5
-    public var centerY: CGFloat = 0.5
     public var appName: String = "Safari"
     public var clock: String = "Tue Oct 29  9:41 AM"
     /// Menu bar text: dark on a light desktop, light on a dark one.

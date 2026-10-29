@@ -374,53 +374,12 @@ final class ShootModel {
         setLook(as: "Change Frame") { $0.frameStyle = style }
     }
 
-    /// The desktop window's outer size in points. Setting it resizes around the window's center.
-    var desktopWindowSize: CGSize {
-        get { FrameLayout.make(output: capture.outputSize, look: effectiveLook).windowRect.size }
-        set {
-            let layout = FrameLayout.make(output: capture.outputSize, look: effectiveLook)
-            let center = CGPoint(x: layout.windowRect.midX, y: layout.windowRect.midY)
-            let rect = CGRect(x: center.x - newValue.width / 2, y: center.y - newValue.height / 2,
-                              width: newValue.width, height: newValue.height)
-            look.desktop = FrameLayout.desktopOptions(look.desktop, with: rect, output: capture.outputSize)
-        }
-    }
-
     /// The menu bar text editor is up.
     var isEditingMenuBar = false
 
     /// The canvas padding actually used: the automatic amount or the custom one.
     var effectivePadding: CGFloat {
         look.canvas.autoPadding ? FrameLayout.automaticPadding(for: capture.outputSize) : look.canvas.padding
-    }
-
-    /// The desktop window's width as a share of the desktop. Setting it scales the window evenly.
-    var desktopWindowScale: Double {
-        get { look.desktop.widthFraction }
-        set {
-            let ratio = look.desktop.heightFraction / max(look.desktop.widthFraction, 0.01)
-            let width = min(max(newValue, 0.3), 1)
-            look.desktop.widthFraction = width
-            look.desktop.heightFraction = min(max(width * ratio, 0.3), 1)
-        }
-    }
-
-    func centerDesktopWindow() {
-        setLook(as: "Center Window") {
-            $0.desktop.centerX = 0.5
-            $0.desktop.centerY = 0.5
-        }
-    }
-
-    /// Fills the desktop below the menu bar, leaving a 24 pt margin like a zoomed window.
-    func fillDesktop() {
-        let area = CGSize(width: capture.outputSize.width, height: capture.outputSize.height - ChromeMetrics.menuBarHeight)
-        setLook(as: "Fill Desktop") {
-            $0.desktop.widthFraction = max((area.width - 48) / area.width, 0.5)
-            $0.desktop.heightFraction = max((area.height - 48) / area.height, 0.5)
-            $0.desktop.centerX = 0.5
-            $0.desktop.centerY = 0.5
-        }
     }
 
     // MARK: Full-page preview

@@ -198,7 +198,8 @@ private struct FrameCard: View {
                 shadowSlider
             case .desktop:
                 BackgroundPicker(model: model)
-                DesktopWindowSize(model: model)
+                paddingSlider
+                shadowSlider
             }
         }
     }
@@ -325,47 +326,6 @@ private struct FrameThumbnail: View {
         RoundedRectangle(cornerRadius: 4, style: .continuous)
             .fill(LinearGradient(colors: [Color(hex: "#F3AC91") ?? .pink, Color(hex: "#7655A3") ?? .purple],
                                  startPoint: .topLeading, endPoint: .bottomTrailing))
-    }
-}
-
-/// The desktop window's size in points, live as it's dragged, with Center and Fill.
-private struct DesktopWindowSize: View {
-    let model: ShootModel
-
-    var body: some View {
-        StackedControl("Window Size") {
-            HStack(spacing: 6) {
-                TextField("Width", value: Binding(get: { Int(model.desktopWindowSize.width) }, set: { resize(width: $0) }),
-                          format: .number.grouping(.never))
-                Text("×").foregroundStyle(.secondary)
-                TextField("Height", value: Binding(get: { Int(model.desktopWindowSize.height) }, set: { resize(height: $0) }),
-                          format: .number.grouping(.never))
-                Text("pt").foregroundStyle(.secondary)
-                Button { model.centerDesktopWindow() } label: {
-                    Label("Center Window", systemImage: "align.horizontal.center")
-                }
-                .help("Center Window")
-                Button { model.fillDesktop() } label: {
-                    Label("Fill Desktop", systemImage: "arrow.up.left.and.arrow.down.right")
-                }
-                .help("Fill Desktop")
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .textFieldStyle(.roundedBorder)
-            .monospacedDigit()
-        }
-    }
-
-    /// Resizes the window around its center to a typed width or height; the desktop keeps it
-    /// between the smallest window and the area below the menu bar.
-    private func resize(width: Int? = nil, height: Int? = nil) {
-        let size = model.desktopWindowSize
-        let new = CGSize(width: CGFloat(width ?? Int(size.width)), height: CGFloat(height ?? Int(size.height)))
-        guard Int(new.width) != Int(size.width) || Int(new.height) != Int(size.height) else { return }
-        model.beginGesture()
-        model.desktopWindowSize = new
-        model.endGesture(as: "Resize Window")
     }
 }
 

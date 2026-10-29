@@ -79,34 +79,24 @@ struct FrameLayoutTests {
         #expect(FrameLayout.pageSize(output: output, look: look, fullPage: true) == output)
     }
 
-    @Test func desktopIsTheOutputAndTheWindowSitsBelowTheMenuBar() {
+    @Test func desktopWindowIsPaddedEvenlyBelowTheMenuBar() {
         var look = Look(name: "Desktop", window: .safari, backdrop: .desktop)
-        look.desktop.centerY = 0
+        look.canvas.autoPadding = false
+        look.canvas.padding = 60
         let layout = FrameLayout.make(output: output, look: look)
         #expect(layout.canvasSize == output)
-        #expect(layout.windowRect.minY == ChromeMetrics.menuBarHeight)
-        #expect(layout.windowRect.width == (1512 * 0.8).rounded())
+        #expect(layout.windowRect == CGRect(x: 60, y: ChromeMetrics.menuBarHeight + 60,
+                                            width: 1512 - 120, height: 982 - ChromeMetrics.menuBarHeight - 120))
     }
 
-    @Test func desktopWindowRoundTripsThroughFractions() {
+    @Test func desktopAutoPaddingMatchesTheCanvas() {
         let look = Look(name: "Desktop", window: .safari, backdrop: .desktop)
-        let rect = CGRect(x: 100, y: 120, width: 900, height: 600)
-        var moved = look
-        moved.desktop = FrameLayout.desktopOptions(look.desktop, with: rect, output: output)
-        let layout = FrameLayout.make(output: output, look: moved)
-        #expect(abs(layout.windowRect.minX - 100) <= 1 && abs(layout.windowRect.minY - 120) <= 1)
-        #expect(abs(layout.windowRect.width - 900) <= 1 && abs(layout.windowRect.height - 600) <= 1)
-    }
-
-    @Test func movingNearTheCenterSnapsToIt() {
-        let area = CGRect(x: 0, y: 24, width: 1000, height: 600)
-        let near = CGRect(x: 205, y: 120, width: 600, height: 400)   // center 505, 320
-        let result = FrameLayout.snapToCenter(near, in: area, tolerance: 8)
-        #expect(result.x && result.rect.midX == 500)
-        #expect(result.y && result.rect.midY == 324)
-        let far = CGRect(x: 100, y: 40, width: 600, height: 400)
-        let none = FrameLayout.snapToCenter(far, in: area, tolerance: 8)
-        #expect(!none.x && !none.y && none.rect == far)
+        let layout = FrameLayout.make(output: output, look: look)
+        let padding = FrameLayout.automaticPadding(for: output)
+        #expect(layout.windowRect.minX == padding)
+        #expect(layout.windowRect.minY == ChromeMetrics.menuBarHeight + padding)
+        #expect(layout.windowRect.maxX == output.width - padding)
+        #expect(layout.windowRect.maxY == output.height - padding)
     }
 
     @Test func desktopWindowFollowsTheOutput() {

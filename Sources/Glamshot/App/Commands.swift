@@ -198,7 +198,7 @@ struct GlamshotCommands: Commands {
                     model?.setLook(as: value ? "Turn On Auto Padding" : "Turn Off Auto Padding") { $0.canvas.autoPadding = value }
                 }
             ))
-            .disabled(model?.look.backdrop != .canvas)
+            .disabled(model == nil || model?.effectiveLook.backdrop == Backdrop.none)
             Menu("Background") {
                 ForEach(GradientLibrary.entries) { entry in
                     Toggle(entry.name, isOn: Binding(
@@ -212,10 +212,6 @@ struct GlamshotCommands: Commands {
                 Button("Image…") { Task { await model?.chooseBackgroundImage() } }
             }
             .disabled(model == nil || model?.look.backdrop == Backdrop.none)
-            Button("Center Window") { model?.centerDesktopWindow() }
-                .disabled(model?.effectiveLook.backdrop != .desktop)
-            Button("Fill Desktop") { model?.fillDesktop() }
-                .disabled(model?.effectiveLook.backdrop != .desktop)
             Button("Menu Bar Text…") { model?.isEditingMenuBar = true }
                 .disabled(model?.effectiveLook.backdrop != .desktop)
         }
@@ -298,12 +294,7 @@ struct GlamshotCommands: Commands {
     }
 
     private func pasteStyle() {
-        guard let model, var look = StylePasteboard.look else { return }
-        // A style carries the frame, not this window's desktop window placement.
-        look.desktop.widthFraction = model.look.desktop.widthFraction
-        look.desktop.heightFraction = model.look.desktop.heightFraction
-        look.desktop.centerX = model.look.desktop.centerX
-        look.desktop.centerY = model.look.desktop.centerY
+        guard let model, let look = StylePasteboard.look else { return }
         model.setLook(as: "Paste Style") { $0 = look }
     }
 

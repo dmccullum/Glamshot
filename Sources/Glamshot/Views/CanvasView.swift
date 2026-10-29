@@ -68,9 +68,6 @@ struct CanvasView: View {
                             .help("Edit the Address Shown in the Window")
                             .popover(isPresented: $isEditingAddress) { AddressEditor(model: model) }
                     }
-                    if look.backdrop == .desktop {
-                        DesktopWindowHandles(model: model, layout: layout, scale: scale)
-                    }
                 }
                 .frame(width: shown.width, height: shown.height, alignment: .topLeading)
                 .contextMenu { CanvasMenu(model: model) }
