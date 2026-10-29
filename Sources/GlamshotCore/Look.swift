@@ -65,6 +65,42 @@ public struct Look: Codable, Hashable, Identifiable, Sendable {
     public static let standard = Look(name: "Safari", window: .safari, backdrop: .none)
 }
 
+/// The four ways to frame a page, as the inspector's tiles offer them. Each is a window and
+/// backdrop pair; on a canvas the window is optional.
+public enum FrameStyle: String, CaseIterable, Sendable {
+    case page, safari, canvas, desktop
+
+    public var title: String {
+        switch self {
+        case .page: "Page"
+        case .safari: "Safari"
+        case .canvas: "Canvas"
+        case .desktop: "Desktop"
+        }
+    }
+}
+
+extension Look {
+    public var frameStyle: FrameStyle {
+        get {
+            switch backdrop {
+            case .desktop: .desktop
+            case .canvas: .canvas
+            case .none: window == .safari ? .safari : .page
+            }
+        }
+        set {
+            switch newValue {
+            case .page: window = .none; backdrop = .none
+            case .safari: window = .safari; backdrop = .none
+            // A canvas keeps whether the window was on, so switching to it doesn't undo that choice.
+            case .canvas: backdrop = .canvas
+            case .desktop: window = .safari; backdrop = .desktop
+            }
+        }
+    }
+}
+
 public enum WindowStyle: String, Codable, CaseIterable, Sendable {
     case none, safari
 

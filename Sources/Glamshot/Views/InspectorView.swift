@@ -3,106 +3,113 @@ import DMKit
 import GlamshotCore
 import SwiftUI
 
-/// Cards in the order a shot is made: the output's size, how the page lays out in it, the browser
-/// window, and what the window sits on. Every control has its title above it and fills the card's
-/// width; switches sit at the right of their row. Controls that don't apply in the current mode
-/// aren't shown (the menu bar keeps them, disabled).
+/// Four cards: the image's size, how wide the page lays out, the frame (picked from four tiles, with
+/// only that frame's controls below), and the Safari window's chrome when one is drawn. Numbers sit
+/// in the controls rather than in notes, and controls that don't apply aren't shown; the menu bar
+/// keeps them, disabled.
 struct InspectorView: View {
     @Bindable var model: ShootModel
 
     var body: some View {
         ScrollView {
             VStack(spacing: DMLayout.inspectorSpacing) {
-                OutputCard(model: model)
+                SizeCard(model: model)
                 PageCard(model: model)
-                if !model.capture.fullPage {
+                FrameCard(model: model)
+                if showsWindowCard {
                     WindowCard(model: model)
                 }
-                BackdropCard(model: model)
             }
             .padding(DMLayout.inspectorPadding)
         }
     }
+
+    private var showsWindowCard: Bool {
+        switch model.effectiveLook.frameStyle {
+        case .safari, .desktop: true
+        case .canvas: !model.capture.fullPage
+        case .page: false
+        }
+    }
 }
 
-// MARK: - Output
+// MARK: - Size
 
-private struct OutputCard: View {
+private struct SizeCard: View {
     let model: ShootModel
     @State private var width = ""
     @State private var height = ""
     @FocusState private var widthFocused: Bool
 
-    private var isDesktop: Bool { model.effectiveLook.backdrop == .desktop }
-
     var body: some View {
-        InspectorCard("Output", systemImage: "photo") {
-            EmptyView()
+        InspectorCard("Size", systemImage: "aspectratio") {
+            Text(pixelSize)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
         } content: {
-            StackedControl("Size") {
-                Menu {
-                    Toggle("Custom", isOn: Binding(get: { model.isCustomSize }, set: { _ in model.chooseCustomSize() }))
-                    ForEach(SizePreset.Group.allCases, id: \.self) { group in
-                        let presets = Defaults.shared.allPresets.filter { $0.group == group }
-                        if !presets.isEmpty {
-                            Section(group.title) {
-                                ForEach(presets) { preset in
-                                    Toggle(preset.name, isOn: Binding(
-                                        get: { model.currentPreset?.id == preset.id },
-                                        set: { _ in model.choose(preset) }
-                                    ))
-                                }
+            Menu {
+                ForEach(SizePreset.Group.allCases, id: \.self) { group in
+                    let presets = Defaults.shared.allPresets.filter { $0.group == group }
+                    if !presets.isEmpty {
+                        Section(group.title) {
+                            ForEach(presets) { preset in
+                                Toggle(preset.name, isOn: Binding(
+                                    get: { model.currentPreset?.id == preset.id },
+                                    set: { _ in model.choose(preset) }
+                                ))
                             }
                         }
                     }
-                } label: {
-                    Text(model.currentPreset?.name ?? "Custom")
                 }
-                .fixedSize()
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Divider()
+                Toggle("Custom", isOn: Binding(get: { model.isCustomSize }, set: { _ in model.chooseCustomSize() }))
+            } label: {
+                Text(model.currentPreset?.name ?? "Custom")
             }
+            .fixedSize()
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 6) {
-                TextField("Width", text: $width).onSubmit(commit).focused($widthFocused)
+                TextField("Width", text: $width)
+                    .onSubmit(commit)
+                    .focused($widthFocused)
                 Text("×").foregroundStyle(.secondary)
                 if model.capture.fullPage {
-                    // The page sets the height.
-                    Text("Page Length")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    // The page's length sets the height.
+                    TextField("Height", text: .constant("Full"))
+                        .disabled(true)
+                        .help("A full page is as tall as the page")
                 } else {
                     TextField("Height", text: $height).onSubmit(commit)
                 }
                 Text("pt").foregroundStyle(.secondary)
+                Picker("Scale", selection: Binding(
+                    get: { model.capture.scale },
+                    set: { value in model.setCapture(as: "Change Scale") { $0.scale = value } }
+                )) {
+                    ForEach(1...3, id: \.self) { Text("\($0)×").tag($0) }
+                }
+                .labelsHidden()
+                .fixedSize()
+                .help("Pixels per point")
             }
             .textFieldStyle(.roundedBorder)
             .monospacedDigit()
-
-            StackedControl("Scale") {
-                FilledSegments("Scale", selection: Binding(
-                    get: { model.capture.scale },
-                    set: { value in model.setCapture(as: "Change Scale") { $0.scale = value } }
-                ), segments: [1, 2, 3].map { .init(value: $0, title: "\($0)×") })
-            }
-
-            Text("Saves \(outputPixels)")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
         }
         .onAppear(perform: syncFields)
         .onChange(of: model.capture) { syncFields() }
         .onChange(of: model.focusSizeRequest) { widthFocused = true }
     }
 
-    private var outputPixels: String {
-        let fullPage = model.capture.fullPage && !isDesktop
-        let height = fullPage ? model.fullPagePreview?.pointSize.height : nil
-        let layout = FrameLayout.make(output: model.capture.outputSize, look: model.look, pageHeight: height)
+    /// The saved image's size in pixels.
+    private var pixelSize: String {
+        let height = model.capture.fullPage ? model.fullPagePreview?.pointSize.height : nil
+        let layout = FrameLayout.make(output: model.capture.outputSize, look: model.effectiveLook, pageHeight: height)
         let scale = CGFloat(model.capture.scale)
         let width = Int(layout.canvasSize.width * scale)
-        if fullPage, height == nil { return "\(width) px wide, full length" }
-        return "\(width) × \(Int(layout.canvasSize.height * scale)) px"
+        if model.capture.fullPage, height == nil { return "\(width) px wide" }
+        return "\(width.formatted()) × \(Int(layout.canvasSize.height * scale).formatted()) px"
     }
 
     private func syncFields() {
@@ -111,7 +118,8 @@ private struct OutputCard: View {
     }
 
     private func commit() {
-        guard let w = Int(width), let h = Int(height), (200...8000).contains(w), (200...8000).contains(h) else {
+        let h = model.capture.fullPage ? model.capture.height : Int(height) ?? 0
+        guard let w = Int(width), (200...8000).contains(w), (200...8000).contains(h) else {
             syncFields()
             return
         }
@@ -127,148 +135,74 @@ private struct OutputCard: View {
 private struct PageCard: View {
     let model: ShootModel
 
+    /// The page's room in points; at 100% zoom it lays out at this width.
+    private var roomWidth: Double { Double(model.pageSize.width) }
+
     var body: some View {
         InspectorCard("Page", systemImage: "doc.richtext") {
+            Picker("Appearance", selection: Binding(
+                get: { model.capture.appearance },
+                set: { value in model.setCapture(as: "Change Appearance") { $0.appearance = value } }
+            )) {
+                Image(systemName: "sun.max").tag(CaptureOptions.Appearance.light)
+                    .accessibilityLabel("Light")
+                Image(systemName: "moon").tag(CaptureOptions.Appearance.dark)
+                    .accessibilityLabel("Dark")
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("Light or dark mode for the page and Safari’s window")
+        } content: {
+            // The zoom, shown as the width the page lays out at: wider means smaller.
+            InspectorSlider("Page Width", value: roomWidth / model.capture.zoom,
+                            in: roomWidth...(roomWidth / CaptureOptions.zoomRange.lowerBound),
+                            default: roomWidth,
+                            format: .init(unit: .init(symbol: "px", spokenName: "pixels"), step: 10)) { value in
+                model.beginGesture()
+                model.capture.zoom = min(max(roomWidth / value, CaptureOptions.zoomRange.lowerBound), 1)
+            } commit: {
+                model.endGesture(as: "Change Page Width")
+            }
+            .help("How wide a browser window the page lays out in. Wider shows more of a desktop layout, drawn smaller.")
+        }
+    }
+}
+
+// MARK: - Frame
+
+private struct FrameCard: View {
+    let model: ShootModel
+
+    private var style: FrameStyle { model.effectiveLook.frameStyle }
+
+    var body: some View {
+        InspectorCard("Frame", systemImage: "macwindow.on.rectangle") {
             EmptyView()
         } content: {
-            InspectorSlider("Zoom", value: model.capture.zoom, in: CaptureOptions.zoomRange, default: 1, format: .percent) { value in
-                model.beginGesture()
-                model.capture.zoom = (value * 20).rounded() / 20
-            } commit: {
-                model.endGesture(as: "Change Zoom")
-            }
+            FrameTiles(model: model)
 
-            StackedControl("Appearance") {
-                FilledSegments("Appearance", selection: Binding(
-                    get: { model.capture.appearance },
-                    set: { value in model.setCapture(as: "Change Appearance") { $0.appearance = value } }
-                ), segments: CaptureOptions.Appearance.allCases.map {
-                    .init(value: $0, title: $0.title,
-                          help: "Light or dark mode for the page (sites that support it) and Safari’s window and status bar")
-                })
-            }
-
-            Text("Lays out like a \(Int(model.layoutSize.width)) × \(Int(model.layoutSize.height)) browser window.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
-// MARK: - Window
-
-private struct WindowCard: View {
-    let model: ShootModel
-
-    private var isOn: Bool { model.look.window == .safari }
-    /// The device actually drawn, with Automatic worked out from the output size.
-    private var device: SafariOptions.Device { model.effectiveLook.safari.device }
-
-    var body: some View {
-        InspectorCard("Safari Window", systemImage: "macwindow", isActive: isOn) {
-            Toggle("Safari Window", isOn: Binding(
-                get: { isOn },
-                set: { value in
-                    model.setLook(as: value ? "Show Safari Window" : "Hide Safari Window") { $0.window = value ? .safari : .none }
-                }
-            ))
-            .toggleStyle(.switch)
-            .labelsHidden()
-            .controlSize(.small)
-        } content: {
-            if isOn {
-                if device == .iPhone {
-                    StackedControl("Address Bar") {
-                        FilledSegments("Address Bar", selection: Binding(
-                            get: { model.look.safari.phoneBar },
-                            set: { value in model.setLook(as: "Change Address Bar") { $0.safari.phoneBar = value } }
-                        ), segments: [
-                            .init(value: SafariOptions.PhoneBar.full, title: "Full"),
-                            .init(value: SafariOptions.PhoneBar.minimized, title: "Minimized", help: "As Safari shows it after you scroll")
-                        ])
-                    }
-                }
-                StackedControl("Address") {
-                    FilledSegments("Address", selection: Binding(
-                        get: { model.look.safari.address },
-                        set: { value in model.setLook(as: "Change Address") { $0.safari.address = value } }
-                    ), segments: SafariOptions.Address.allCases.map { .init(value: $0, title: $0.title) })
-                }
-                if model.look.safari.address == .custom {
-                    CustomAddressField(model: model)
-                }
-                if device != .iPhone {
-                    SwitchRow("Tab Bar", isOn: Binding(
-                        get: { model.look.safari.showsTabBar },
-                        set: { value in model.setLook(as: value ? "Show Tab Bar" : "Hide Tab Bar") { $0.safari.showsTabBar = value } }
-                    ))
-                }
-                if model.look.backdrop == .none {
-                    // With no backdrop the shadow is the window's, on a transparent image.
-                    InspectorSlider("Shadow", value: model.look.shadow, in: 0...1, default: 0.7, format: .percent) { value in
-                        model.beginGesture()
-                        model.look.shadow = value
-                    } commit: {
-                        model.endGesture(as: "Change Shadow")
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// The text a Custom address shows; it belongs to the window, not the Look.
-private struct CustomAddressField: View {
-    @Bindable var model: ShootModel
-    @State private var text = ""
-
-    var body: some View {
-        TextField("yourbrand.com", text: $text)
-            .textFieldStyle(.roundedBorder)
-            .onSubmit { model.customAddress = text.trimmingCharacters(in: .whitespaces) }
-            .onAppear { text = model.customAddress }
-            .onChange(of: model.customAddress) { text = model.customAddress }
-            .help("Shown in the window instead of the page’s address. Click the address in the window to edit it there too.")
-    }
-}
-
-// MARK: - Backdrop
-
-private struct BackdropCard: View {
-    let model: ShootModel
-
-    private var isOn: Bool { model.look.backdrop != .none }
-
-    var body: some View {
-        InspectorCard("Backdrop", systemImage: "photo.on.rectangle", isActive: isOn) {
-            Toggle("Backdrop", isOn: Binding(
-                get: { isOn },
-                set: { value in model.setBackdrop(value ? model.lastBackdrop : .none) }
-            ))
-            .toggleStyle(.switch)
-            .labelsHidden()
-            .controlSize(.small)
-        } content: {
-            if isOn {
-                // A full page, or an iPhone or iPad screen, can only sit on a canvas.
-                if !model.capture.fullPage, model.effectiveLook.safari.device == .mac {
-                    FilledSegments("Backdrop", selection: Binding(
-                        get: { model.look.backdrop },
-                        set: { value in model.setBackdrop(value) }
-                    ), segments: [
-                        .init(value: Backdrop.canvas, title: "Canvas", help: "A background with padding around the window"),
-                        .init(value: Backdrop.desktop, title: "Desktop", help: "A Mac desktop with a menu bar")
-                    ])
-                }
+            switch style {
+            case .page:
+                EmptyView()
+            case .safari:
+                shadowSlider
+            case .canvas:
                 BackgroundPicker(model: model)
-                if model.effectiveLook.backdrop == .canvas {
-                    canvasControls
-                    shadowSlider
-                } else {
-                    desktopControls
+                paddingSlider
+                if model.effectiveLook.window == .none {
+                    InspectorSlider("Corner Radius", value: model.look.canvas.cornerRadius, in: 0...40, default: 14,
+                                    format: .init(unit: .points), snapsToStep: true) { value in
+                        model.beginGesture()
+                        model.look.canvas.cornerRadius = value
+                    } commit: {
+                        model.endGesture(as: "Change Corner Radius")
+                    }
                 }
+                shadowSlider
+            case .desktop:
+                BackgroundPicker(model: model)
+                DesktopWindowSize(model: model)
             }
         }
     }
@@ -282,109 +216,339 @@ private struct BackdropCard: View {
         }
     }
 
-    @ViewBuilder private var canvasControls: some View {
-        // Shows the padding in use; moving it sets your own, and Auto Padding goes back.
-        InspectorSlider("Padding", value: model.effectivePadding, in: 0...400,
-                        format: .init(unit: .points), snapsToStep: true) { value in
+    /// One slider: its default is Auto, dragging sets a fixed amount, and double-clicking the title
+    /// returns to Auto.
+    private var paddingSlider: some View {
+        let automatic = FrameLayout.automaticPadding(for: model.capture.outputSize)
+        return InspectorSlider(model.look.canvas.autoPadding ? "Padding · Auto" : "Padding",
+                               value: model.effectivePadding, in: 0...400, default: automatic,
+                               format: .init(unit: .points), snapsToStep: true) { value in
             model.beginGesture()
-            model.look.canvas.autoPadding = false
-            model.look.canvas.padding = value
+            if value == automatic {
+                model.look.canvas.autoPadding = true
+            } else {
+                model.look.canvas.autoPadding = false
+                model.look.canvas.padding = value
+            }
         } commit: {
             model.endGesture(as: "Change Padding")
         }
-        SwitchRow("Auto Padding", isOn: Binding(
-            get: { model.look.canvas.autoPadding },
-            set: { value in model.setLook(as: value ? "Turn On Auto Padding" : "Turn Off Auto Padding") { $0.canvas.autoPadding = value } }
-        ))
-        .help("Picks the padding from the output size")
-        if model.look.window == .none {
-            InspectorSlider("Corner Radius", value: model.look.canvas.cornerRadius, in: 0...40, default: 14,
-                            format: .init(unit: .points), snapsToStep: true) { value in
-                model.beginGesture()
-                model.look.canvas.cornerRadius = value
-            } commit: {
-                model.endGesture(as: "Change Corner Radius")
-            }
-        }
+        .help("Double-click the title to return to automatic padding")
     }
+}
 
-    @ViewBuilder private var desktopControls: some View {
-        // Follows the window as it's dragged on the desktop.
-        InspectorSlider("Window Size", value: model.desktopWindowScale, in: 0.3...1, default: 0.8, format: .percent) { value in
-            model.beginGesture()
-            model.desktopWindowScale = value
-        } commit: {
-            model.endGesture(as: "Resize Window")
-        }
-        StackedControl("Window Position") {
-            HStack {
-                Button { model.centerDesktopWindow() } label: { Text("Center Window").frame(maxWidth: .infinity) }
-                Button { model.fillDesktop() } label: { Text("Fill Desktop").frame(maxWidth: .infinity) }
+/// Four thumbnails, one per frame. Frames the size or mode can't use aren't offered.
+private struct FrameTiles: View {
+    let model: ShootModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(model.availableFrameStyles, id: \.self) { style in
+                let selected = model.effectiveLook.frameStyle == style
+                Button {
+                    model.setFrameStyle(style)
+                } label: {
+                    VStack(spacing: 4) {
+                        FrameThumbnail(style: style)
+                            .frame(height: 38)
+                            .frame(maxWidth: .infinity)
+                            .padding(4)
+                            .background {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(selected ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.05))
+                            }
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.1), lineWidth: selected ? 2 : 1)
+                            }
+                        Text(style.title)
+                            .font(.caption)
+                            .foregroundStyle(selected ? .primary : .secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(style.title)
+                .accessibilityAddTraits(selected ? .isSelected : [])
             }
-        }
-        Text("Drag the window’s toolbar to move it, or its edges to resize it.")
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-        StackedControl("Menu Bar") {
-            FilledSegments("Menu Bar", selection: Binding(
-                get: { model.look.desktop.menuBar },
-                set: { value in model.setLook(as: "Change Menu Bar") { $0.desktop.menuBar = value } }
-            ), segments: MenuBarAppearance.allCases.map { .init(value: $0, title: $0.title) })
-        }
-        LabeledTextField(title: "App Name", value: model.look.desktop.appName) { value in
-            model.setLook(as: "Change App Name") { $0.desktop.appName = value }
-        }
-        LabeledTextField(title: "Clock", value: model.look.desktop.clock) { value in
-            model.setLook(as: "Change Clock") { $0.desktop.clock = value }
         }
     }
 }
 
-/// Gradient swatches, then Shuffle, Image… and a color well, for the canvas or desktop.
+/// A tiny drawing of each frame.
+private struct FrameThumbnail: View {
+    let style: FrameStyle
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size
+            ZStack {
+                switch style {
+                case .page:
+                    page.frame(width: size.width * 0.78, height: size.height * 0.92)
+                case .safari:
+                    window.frame(width: size.width * 0.82, height: size.height * 0.92)
+                case .canvas:
+                    backdrop
+                    window.frame(width: size.width * 0.6, height: size.height * 0.62)
+                case .desktop:
+                    backdrop
+                    VStack(spacing: 0) {
+                        Rectangle().fill(.white.opacity(0.7)).frame(height: 2)
+                        Spacer()
+                    }
+                    window.frame(width: size.width * 0.62, height: size.height * 0.6).offset(y: 2)
+                }
+            }
+            .frame(width: size.width, height: size.height)
+        }
+    }
+
+    private var page: some View {
+        RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Color.primary.opacity(0.35))
+    }
+
+    private var window: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 1.5) {
+                ForEach(0..<3) { _ in Circle().frame(width: 2.5, height: 2.5) }
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(Color.primary.opacity(0.5))
+            .padding(.horizontal, 3)
+            .frame(height: 6)
+            .background(Color.primary.opacity(0.18))
+            Rectangle().fill(Color.primary.opacity(0.35))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+    }
+
+    private var backdrop: some View {
+        RoundedRectangle(cornerRadius: 4, style: .continuous)
+            .fill(LinearGradient(colors: [Color(hex: "#F3AC91") ?? .pink, Color(hex: "#7655A3") ?? .purple],
+                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+    }
+}
+
+/// The desktop window's size in points, live as it's dragged, with Center and Fill.
+private struct DesktopWindowSize: View {
+    let model: ShootModel
+    @State private var width = ""
+    @State private var height = ""
+
+    var body: some View {
+        StackedControl("Window Size") {
+            HStack(spacing: 6) {
+                TextField("Width", text: $width).onSubmit(commit)
+                Text("×").foregroundStyle(.secondary)
+                TextField("Height", text: $height).onSubmit(commit)
+                Text("pt").foregroundStyle(.secondary)
+                Button { model.centerDesktopWindow() } label: {
+                    Label("Center Window", systemImage: "align.horizontal.center")
+                }
+                .help("Center Window")
+                Button { model.fillDesktop() } label: {
+                    Label("Fill Desktop", systemImage: "arrow.up.left.and.arrow.down.right")
+                }
+                .help("Fill Desktop")
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .textFieldStyle(.roundedBorder)
+            .monospacedDigit()
+        }
+        .onAppear(perform: sync)
+        .onChange(of: model.look.desktop) { sync() }
+        .onChange(of: model.capture.outputSize) { sync() }
+    }
+
+    private func sync() {
+        let size = model.desktopWindowSize
+        width = "\(Int(size.width))"
+        height = "\(Int(size.height))"
+    }
+
+    private func commit() {
+        guard let w = Double(width), let h = Double(height) else { return sync() }
+        model.beginGesture()
+        model.desktopWindowSize = CGSize(width: w, height: h)
+        model.endGesture(as: "Resize Window")
+        sync()
+    }
+}
+
+// MARK: - Safari window
+
+private struct WindowCard: View {
+    let model: ShootModel
+
+    private var isOn: Bool { model.look.window == .safari }
+    private var device: SafariOptions.Device { model.effectiveLook.safari.device }
+    /// Only a canvas makes the window optional.
+    private var hasSwitch: Bool { model.effectiveLook.frameStyle == .canvas }
+
+    var body: some View {
+        InspectorCard("Safari Window", systemImage: "macwindow", isActive: isOn || !hasSwitch) {
+            if hasSwitch {
+                Toggle("Safari Window", isOn: Binding(
+                    get: { isOn },
+                    set: { value in
+                        model.setLook(as: value ? "Show Safari Window" : "Hide Safari Window") { $0.window = value ? .safari : .none }
+                    }
+                ))
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .controlSize(.small)
+            }
+        } content: {
+            if isOn {
+                LabeledRow("Address") {
+                    Picker("Address", selection: Binding(
+                        get: { model.look.safari.address },
+                        set: { value in model.setLook(as: "Change Address") { $0.safari.address = value } }
+                    )) {
+                        ForEach(SafariOptions.Address.allCases, id: \.self) { Text($0 == .fullURL ? "Full Address" : $0.title).tag($0) }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                }
+                if model.look.safari.address == .custom {
+                    CustomAddressField(model: model)
+                }
+                if device == .iPhone {
+                    SwitchRow("Minimized Bar", isOn: Binding(
+                        get: { model.look.safari.phoneBar == .minimized },
+                        set: { value in model.setLook(as: "Change Address Bar") { $0.safari.phoneBar = value ? .minimized : .full } }
+                    ))
+                    .help("Safari’s address bar as it shrinks after you scroll")
+                } else {
+                    SwitchRow("Tab Bar", isOn: Binding(
+                        get: { model.look.safari.showsTabBar },
+                        set: { value in model.setLook(as: value ? "Show Tab Bar" : "Hide Tab Bar") { $0.safari.showsTabBar = value } }
+                    ))
+                }
+            }
+        }
+    }
+}
+
+/// The text a Custom address shows; it belongs to the window, not the frame settings.
+private struct CustomAddressField: View {
+    @Bindable var model: ShootModel
+    @State private var text = ""
+
+    var body: some View {
+        TextField("yourbrand.com", text: $text)
+            .textFieldStyle(.roundedBorder)
+            .onSubmit { model.customAddress = text.trimmingCharacters(in: .whitespaces) }
+            .onAppear { text = model.customAddress }
+            .onChange(of: model.customAddress) { text = model.customAddress }
+            .help("Shown in the window instead of the page’s address. You can also click the address in the window.")
+    }
+}
+
+// MARK: - Background
+
+/// Eight gradients, a color tile and an image tile in a 5 × 2 grid, with Shuffle beside the title.
 private struct BackgroundPicker: View {
     let model: ShootModel
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 5)
 
     var body: some View {
-        StackedControl("Background") {
-            VStack(spacing: 8) {
-                LazyVGrid(columns: columns, spacing: 6) {
-                    ForEach(GradientLibrary.entries) { entry in
-                        let selected = model.look.background.gradientName == entry.name
-                        Button {
-                            model.setLook(as: "Change Background") { $0.background = .gradient(name: entry.name, seed: 0) }
-                        } label: {
-                            BackgroundView(fill: .gradient(name: entry.name, seed: 0))
-                                .frame(height: 30)
-                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                        .strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.12), lineWidth: selected ? 2 : 1)
-                                }
-                        }
-                        .buttonStyle(.plain)
-                        .help(entry.name)
-                        .accessibilityLabel(entry.name)
-                        .accessibilityAddTraits(selected ? .isSelected : [])
-                    }
-                }
-                HStack(spacing: 6) {
-                    if model.look.background.gradientName != nil {
-                        Button { model.shuffleBackground() } label: { Text("Shuffle").frame(maxWidth: .infinity) }
-                    }
-                    Button { Task { await model.chooseBackgroundImage() } } label: { Text("Image…").frame(maxWidth: .infinity) }
-                    ColorPicker("Background Color", selection: Binding(
-                        get: { model.look.background.color ?? .white },
-                        set: { color in
-                            model.setLook(as: "Change Background") { $0.background = .color(hex: NSColor(color).hexString) }
-                        }
-                    ))
-                    .labelsHidden()
-                    .help("Background Color")
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Background")
+                Spacer()
+                if model.look.background.gradientName != nil {
+                    Button { model.shuffleBackground() } label: { Label("Shuffle", systemImage: "shuffle") }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.borderless)
+                        .help("Shuffle: a new arrangement of the same colors")
                 }
             }
+            LazyVGrid(columns: columns, spacing: 6) {
+                ForEach(GradientLibrary.entries) { entry in
+                    let selected = model.look.background.gradientName == entry.name
+                    Button {
+                        model.setLook(as: "Change Background") { $0.background = .gradient(name: entry.name, seed: 0) }
+                    } label: {
+                        tile(selected: selected) { BackgroundView(fill: .gradient(name: entry.name, seed: 0)) }
+                    }
+                    .buttonStyle(.plain)
+                    .help(entry.name)
+                    .accessibilityLabel(entry.name)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+                ColorTile(model: model, selected: model.look.background.color != nil)
+                Button { Task { await model.chooseBackgroundImage() } } label: {
+                    tile(selected: isImage) {
+                        ZStack {
+                            Color.primary.opacity(0.06)
+                            Image(systemName: "photo").foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .help("Image…")
+                .accessibilityLabel("Image…")
+            }
+        }
+    }
+
+    private var isImage: Bool {
+        if case .image = model.look.background { return true }
+        return false
+    }
+
+    private func tile<Content: View>(selected: Bool, @ViewBuilder content: () -> Content) -> some View {
+        content()
+            .frame(height: 30)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.12), lineWidth: selected ? 2 : 1)
+            }
+    }
+}
+
+/// A tile that shows the background color and opens the color panel.
+private struct ColorTile: View {
+    let model: ShootModel
+    let selected: Bool
+
+    var body: some View {
+        ColorPicker("Color", selection: Binding(
+            get: { model.look.background.color ?? .white },
+            set: { color in model.setLook(as: "Change Background") { $0.background = .color(hex: NSColor(color).hexString) } }
+        ))
+        .labelsHidden()
+        .frame(maxWidth: .infinity)
+        .frame(height: 30)
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2)
+        }
+        .help("Color")
+    }
+}
+
+// MARK: - Rows
+
+/// A title at the left and its control at the right edge of the card.
+private struct LabeledRow<Control: View>: View {
+    let title: String
+    @ViewBuilder let control: () -> Control
+
+    init(_ title: String, @ViewBuilder control: @escaping () -> Control) {
+        self.title = title
+        self.control = control
+    }
+
+    var body: some View {
+        HStack {
+            Text(title)
+            Spacer(minLength: 8)
+            control()
         }
     }
 }
@@ -405,24 +569,6 @@ private struct SwitchRow: View {
         }
         .toggleStyle(.switch)
         .controlSize(.small)
-    }
-}
-
-private struct LabeledTextField: View {
-    let title: String
-    let value: String
-    let commit: (String) -> Void
-    @State private var text = ""
-
-    var body: some View {
-        StackedControl(title) {
-            TextField(title, text: $text)
-                .textFieldStyle(.roundedBorder)
-                .labelsHidden()
-                .onSubmit { commit(text) }
-        }
-        .onAppear { text = value }
-        .onChange(of: value) { text = value }
     }
 }
 

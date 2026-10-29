@@ -79,6 +79,17 @@ struct FrameLayoutTests {
         #expect(abs(layout.windowRect.width - 900) <= 1 && abs(layout.windowRect.height - 600) <= 1)
     }
 
+    @Test func movingNearTheCenterSnapsToIt() {
+        let area = CGRect(x: 0, y: 24, width: 1000, height: 600)
+        let near = CGRect(x: 205, y: 120, width: 600, height: 400)   // center 505, 320
+        let result = FrameLayout.snapToCenter(near, in: area, tolerance: 8)
+        #expect(result.x && result.rect.midX == 500)
+        #expect(result.y && result.rect.midY == 324)
+        let far = CGRect(x: 100, y: 40, width: 600, height: 400)
+        let none = FrameLayout.snapToCenter(far, in: area, tolerance: 8)
+        #expect(!none.x && !none.y && none.rect == far)
+    }
+
     @Test func desktopWindowFollowsTheOutput() {
         let look = Look(name: "Desktop", window: .safari, backdrop: .desktop)
         let small = FrameLayout.make(output: output, look: look)
@@ -106,6 +117,25 @@ struct SafariDeviceTests {
         let look = Look(name: "Phone", window: .safari, backdrop: .none, safari: SafariOptions(device: .iPhone), shadow: 0)
         let layout = FrameLayout.make(output: CGSize(width: 402, height: 874), look: look)
         #expect(layout.pageRect == CGRect(x: 0, y: ChromeMetrics.iPhoneStatusBarHeight, width: 402, height: 874 - ChromeMetrics.iPhoneStatusBarHeight))
+    }
+}
+
+@Suite("Frame style")
+struct FrameStyleTests {
+    @Test func eachStyleRoundTrips() {
+        for style in FrameStyle.allCases {
+            var look = Look(name: "Test")
+            look.frameStyle = style
+            #expect(look.frameStyle == style)
+        }
+    }
+
+    @Test func canvasKeepsTheWindowChoice() {
+        var look = Look(name: "Test", window: .none, backdrop: .none)
+        look.frameStyle = .canvas
+        #expect(look.window == .none)
+        look.frameStyle = .desktop
+        #expect(look.window == .safari)
     }
 }
 

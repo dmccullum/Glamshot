@@ -47,13 +47,8 @@ struct ShotView<Page: View>: View {
         context.isDark
     }
 
-    private var menuBarHasLightText: Bool {
-        switch look.desktop.menuBar {
-        case .automatic: look.background.topIsDark
-        case .light: false
-        case .dark: true
-        }
-    }
+    /// Light menu bar text over a dark background, dark over a light one, as macOS does.
+    private var menuBarHasLightText: Bool { look.background.topIsDark }
 
     private var cornerRadius: CGFloat { Self.cornerRadius(look: look, layout: layout) }
 

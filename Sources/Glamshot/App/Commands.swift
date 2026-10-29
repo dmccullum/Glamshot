@@ -185,20 +185,18 @@ struct GlamshotCommands: Commands {
         }
 
         CommandMenu("Frame") {
-            Picker("Window", selection: Binding(
-                get: { model?.look.window ?? .safari },
-                set: { value in model?.setLook(as: "Change Window") { $0.window = value } }
-            )) {
-                ForEach(WindowStyle.allCases, id: \.self) { Text($0.title).tag($0) }
+            ForEach(FrameStyle.allCases, id: \.self) { style in
+                Toggle(style.title, isOn: Binding(
+                    get: { model?.effectiveLook.frameStyle == style },
+                    set: { _ in model?.setFrameStyle(style) }
+                ))
+                .disabled(!(model?.availableFrameStyles.contains(style) ?? false))
             }
-            .disabled(model == nil)
-            Picker("Backdrop", selection: Binding(
-                get: { model?.look.backdrop ?? .none },
-                set: { value in model?.setBackdrop(value) }
-            )) {
-                ForEach(Backdrop.allCases, id: \.self) { Text($0.title).tag($0) }
-            }
-            .disabled(model == nil)
+            Toggle("Safari Window on Canvas", isOn: Binding(
+                get: { model?.look.window == .safari },
+                set: { value in model?.setLook(as: value ? "Show Safari Window" : "Hide Safari Window") { $0.window = value ? .safari : .none } }
+            ))
+            .disabled(model?.effectiveLook.frameStyle != .canvas)
             Divider()
             Toggle("Auto Padding", isOn: Binding(
                 get: { model?.look.canvas.autoPadding ?? false },
@@ -223,6 +221,8 @@ struct GlamshotCommands: Commands {
             Button("Center Window") { model?.centerDesktopWindow() }
                 .disabled(model?.effectiveLook.backdrop != .desktop)
             Button("Fill Desktop") { model?.fillDesktop() }
+                .disabled(model?.effectiveLook.backdrop != .desktop)
+            Button("Menu Bar Text…") { model?.isEditingMenuBar = true }
                 .disabled(model?.effectiveLook.backdrop != .desktop)
         }
 

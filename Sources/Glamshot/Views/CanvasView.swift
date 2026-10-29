@@ -50,6 +50,14 @@ struct CanvasView: View {
                             .frame(width: layout.pageRect.width * scale, height: layout.pageRect.height * scale, alignment: .topLeading)
                             .offset(x: layout.pageRect.minX * scale, y: layout.pageRect.minY * scale)
                     }
+                    if look.backdrop == .desktop {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .frame(width: layout.canvasSize.width * scale, height: ChromeMetrics.menuBarHeight * scale)
+                            .onTapGesture { model.isEditingMenuBar = true }
+                            .help("Edit the Menu Bar’s App Name and Clock")
+                            .popover(isPresented: $model.isEditingMenuBar, arrowEdge: .bottom) { MenuBarEditor(model: model) }
+                    }
                     if look.window == .safari, look.safari.address != .hidden, let rect = addressRect(layout: layout, look: look) {
                         Color.clear
                             .contentShape(Capsule())
@@ -280,5 +288,38 @@ struct AddressEditor: View {
         model.customAddress = text.trimmingCharacters(in: .whitespaces)
         model.setLook(as: "Change Address") { $0.safari.address = .custom }
         dismiss()
+    }
+}
+
+/// Edits the desktop menu bar's app name and clock.
+struct MenuBarEditor: View {
+    let model: ShootModel
+    @State private var appName = ""
+    @State private var clock = ""
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Form {
+            TextField("App Name", text: $appName)
+            TextField("Clock", text: $clock)
+        }
+        .frame(width: 280)
+        .padding(14)
+        .onAppear {
+            appName = model.look.desktop.appName
+            clock = model.look.desktop.clock
+        }
+        .onSubmit(commit)
+        .onDisappear(perform: commit)
+    }
+
+    private func commit() {
+        let name = appName.trimmingCharacters(in: .whitespaces)
+        let time = clock.trimmingCharacters(in: .whitespaces)
+        guard name != model.look.desktop.appName || time != model.look.desktop.clock else { return }
+        model.setLook(as: "Change Menu Bar") {
+            $0.desktop.appName = name.isEmpty ? "Safari" : name
+            $0.desktop.clock = time
+        }
     }
 }

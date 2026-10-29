@@ -95,6 +95,22 @@ public struct FrameLayout: Equatable, Sendable {
         return CGRect(origin: origin, size: size)
     }
 
+    /// Snaps a moving window's center to the middle of `area` across, down or both, when it comes
+    /// within `tolerance` points, as Final Cut and other editors snap to center guides.
+    public static func snapToCenter(_ rect: CGRect, in area: CGRect, tolerance: CGFloat) -> (rect: CGRect, x: Bool, y: Bool) {
+        var snapped = rect
+        let x = abs(rect.midX - area.midX) <= tolerance
+        let y = abs(rect.midY - area.midY) <= tolerance
+        if x { snapped.origin.x = (area.midX - rect.width / 2).rounded() }
+        if y { snapped.origin.y = (area.midY - rect.height / 2).rounded() }
+        return (snapped, x, y)
+    }
+
+    /// The desktop's area below the menu bar, where the window lives.
+    public static func desktopArea(output: CGSize) -> CGRect {
+        CGRect(x: 0, y: ChromeMetrics.menuBarHeight, width: output.width, height: output.height - ChromeMetrics.menuBarHeight)
+    }
+
     /// Writes a window rect, in points on a desktop of `output`, back as fractions of the area
     /// below the menu bar.
     public static func desktopOptions(_ desktop: DesktopOptions, with rect: CGRect, output: CGSize) -> DesktopOptions {

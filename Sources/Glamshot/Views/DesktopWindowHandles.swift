@@ -11,6 +11,8 @@ struct DesktopWindowHandles: View {
 
     @State private var dragStart: (rect: CGRect, look: Look)?
     @State private var isDragging = false
+    /// Which center guides the window is snapped to while it's moved.
+    @State private var snapped = (x: false, y: false)
 
     private static let edge: CGFloat = 8
 
@@ -23,7 +25,15 @@ struct DesktopWindowHandles: View {
                 .frame(width: rect.width * scale, height: max(layout.chromeHeight, 24) * scale)
                 .offset(x: rect.minX * scale, y: rect.minY * scale)
                 .gesture(drag(name: "Move Window") { start, translation in
-                    CGRect(origin: CGPoint(x: start.minX + translation.width, y: start.minY + translation.height), size: start.size)
+                    let moved = CGRect(origin: CGPoint(x: start.minX + translation.width, y: start.minY + translation.height), size: start.size)
+                    // 8 screen points of pull, whatever the zoom.
+                    let result = FrameLayout.snapToCenter(moved, in: FrameLayout.desktopArea(output: layout.canvasSize),
+                                                          tolerance: 8 / scale)
+                    if (result.x && !snapped.x) || (result.y && !snapped.y) {
+                        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+                    }
+                    snapped = (result.x, result.y)
+                    return result.rect
                 })
                 .pointerStyle(.grabIdle)
 
@@ -38,6 +48,7 @@ struct DesktopWindowHandles: View {
             }
 
             if isDragging {
+                centerGuides
                 Text("\(Int(rect.width)) × \(Int(rect.height))")
                     .monospacedDigit()
                     .font(.callout)
@@ -67,8 +78,28 @@ struct DesktopWindowHandles: View {
             .onEnded { _ in
                 dragStart = nil
                 isDragging = false
+                snapped = (false, false)
                 model.endGesture(as: name)
             }
+    }
+
+    /// Lines through the desktop's center while the window is snapped to them.
+    @ViewBuilder private var centerGuides: some View {
+        let area = FrameLayout.desktopArea(output: layout.canvasSize)
+        if snapped.x {
+            Rectangle()
+                .fill(Color.accentColor)
+                .frame(width: 1, height: area.height * scale)
+                .offset(x: area.midX * scale, y: area.minY * scale)
+                .allowsHitTesting(false)
+        }
+        if snapped.y {
+            Rectangle()
+                .fill(Color.accentColor)
+                .frame(width: area.width * scale, height: 1)
+                .offset(x: area.minX * scale, y: area.midY * scale)
+                .allowsHitTesting(false)
+        }
     }
 
     /// Writes a new window rect back as shares of the desktop below the menu bar.

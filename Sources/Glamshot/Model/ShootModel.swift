@@ -353,6 +353,34 @@ final class ShootModel {
 
     // MARK: Desktop window
 
+    // MARK: Frame
+
+    /// The frames this size and mode allow: a full page has no window, and a desktop is a Mac's.
+    var availableFrameStyles: [FrameStyle] {
+        if capture.fullPage { return [.page, .canvas] }
+        if look.resolved(for: capture.outputSize).safari.device != .mac { return [.page, .safari, .canvas] }
+        return FrameStyle.allCases
+    }
+
+    func setFrameStyle(_ style: FrameStyle) {
+        setLook(as: "Change Frame") { $0.frameStyle = style }
+    }
+
+    /// The desktop window's outer size in points. Setting it resizes around the window's center.
+    var desktopWindowSize: CGSize {
+        get { FrameLayout.make(output: capture.outputSize, look: effectiveLook).windowRect.size }
+        set {
+            let layout = FrameLayout.make(output: capture.outputSize, look: effectiveLook)
+            let center = CGPoint(x: layout.windowRect.midX, y: layout.windowRect.midY)
+            let rect = CGRect(x: center.x - newValue.width / 2, y: center.y - newValue.height / 2,
+                              width: newValue.width, height: newValue.height)
+            look.desktop = FrameLayout.desktopOptions(look.desktop, with: rect, output: capture.outputSize)
+        }
+    }
+
+    /// The menu bar text editor is up.
+    var isEditingMenuBar = false
+
     /// The canvas padding actually used: the automatic amount or the custom one.
     var effectivePadding: CGFloat {
         look.canvas.autoPadding ? FrameLayout.automaticPadding(for: capture.outputSize) : look.canvas.padding
