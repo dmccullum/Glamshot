@@ -2,7 +2,7 @@
 
 A Mac app that photographs webpages at device sizes and frames them for mockups: the bare page, Safari's window, Safari on a gradient canvas, or Safari on a Mac desktop.
 
-![danielm.cc at MacBook Pro 14", in Safari on a gradient canvas](docs/images/canvas.png)
+![Glamshot showing danielm.cc at MacBook Pro 14" in Safari on a gradient canvas, with the Size, Page, Frame and Safari Window inspector](docs/images/app.png)
 
 The page in the window is live. Sign in, close banners and scroll to the part you want, then save; the image shows what the window shows.
 
