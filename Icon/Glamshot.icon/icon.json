@@ -142,8 +142,8 @@
             {
               "value": {
                 "linear-gradient": [
-                  "srgb:1.00000,0.87843,0.43922,1.00000",
-                  "srgb:1.00000,0.96471,0.81569,1.00000"
+                  "srgb:1.00000,0.90196,0.50196,1.00000",
+                  "srgb:1.00000,0.98431,0.91765,1.00000"
                 ],
                 "orientation": {
                   "start": {
@@ -161,8 +161,8 @@
               "appearance": "dark",
               "value": {
                 "linear-gradient": [
-                  "srgb:1.00000,0.87843,0.43922,1.00000",
-                  "srgb:1.00000,0.94118,0.75294,1.00000"
+                  "srgb:1.00000,0.90196,0.50196,1.00000",
+                  "srgb:1.00000,0.96471,0.84706,1.00000"
                 ],
                 "orientation": {
                   "start": {
@@ -263,7 +263,8 @@
       "layers": [
         {
           "name": "glow",
-          "image-name": "glow.svg"
+          "image-name": "glow.svg",
+          "glass": false
         },
         {
           "name": "canvas-dark",

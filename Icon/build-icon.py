@@ -17,7 +17,7 @@ The optional JSON overrides any key of P below. Preview a build with Icon Compos
       --export-image --output-file preview.png --platform macOS --rendition Default \\
       --width 512 --height 512 --scale 2 --design-generation 26
 """
-import json, os, shutil, sys
+import json, math, os, shutil, sys
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "Glamshot.icon")
 if not OUT.rstrip("/").endswith(".icon"):
@@ -25,8 +25,8 @@ if not OUT.rstrip("/").endswith(".icon"):
 # band: "navy", "blue" or null; body and toolbar: "light" or "dark" in the light appearance;
 # bg: "bright" (with a pale corner) or "deep".
 P = {"band": None, "body": "light", "toolbar": "light", "bg": "deep", "url": False, "lines": 0,
-     "bar": 196, "photo_r": 186, "ring": 26, "light_r": 44, "flash_w": 240, "bloom": 110, "streak": False,
-     "glow": 0.45, "glow_r": 230}
+     "bar": 196, "photo_r": 186, "ring": 26, "light_r": 44, "flash_w": 240, "bloom": 170, "streak": False,
+     "glow": 0.7, "glow_r": 300}
 if len(sys.argv) > 2:
     P.update(json.loads(sys.argv[2]))
 A = os.path.join(OUT, "Assets")
@@ -129,6 +129,18 @@ def clipped(name, spec, clip_d, box, hidden=None):
     return layer(name, '<defs>%s<clipPath id="c"><path d="%s"/></clipPath></defs><g clip-path="url(#c)">%s</g>' % (d, clip_d, b), hidden=hidden)
 
 
+def soft(core, edge, peak, k=4.0, hold=0.0):
+    """Gaussian-like falloff to zero at the rim, so a glow has no visible edge; hold keeps the
+    centre at full strength out to that fraction of the radius."""
+    tail = math.exp(-k)
+    out = []
+    for i in range(11):
+        t = i/10
+        u = max(0.0, (t - hold)/(1 - hold))
+        out.append((t, core if t <= hold else edge, peak*(math.exp(-k*u*u) - tail)/(1 - tail)))
+    return out
+
+
 def radial(name, cx, cy, rx, ry, stops, **extra):
     s = "".join('<stop offset="%.2f" stop-color="%s" stop-opacity="%.2f"/>' % st for st in stops)
     return layer(name, '<defs><radialGradient id="g">%s</radialGradient></defs><ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="url(#g)"/>'
@@ -150,7 +162,7 @@ group("Photo", [layer("trim", ring(PCX, PCY, PR + P["ring"], PR - 2), fills(soli
       specular=True, lighting="combined", shadow={"kind": "neutral", "opacity": 0.45}, translucency={"enabled": True, "value": 0.1})
 
 # Chrome: flash glare (no glass, so it stays soft), traffic lights, flash window, band and page.
-glare = [radial("bloom", FCX, CY0, P["bloom"], P["bloom"], [(0, "#FFFFFF", 1), (0.4, "#FFFCEE", 0.95), (0.7, "#FFF4D0", 0.4), (1, "#FFF4D0", 0)], glass=False)]
+glare = [radial("bloom", FCX, CY0, P["bloom"], P["bloom"], soft("#FFFFFF", "#FFF6D8", 1.0, k=3.5, hold=0.32), glass=False)]
 if P["streak"]:
     glare.insert(0, radial("streak", FCX, CY0, 420, 26, [(0, "#FFFFFF", 0.95), (0.5, "#FFF8E4", 0.35), (1, "#FFF8E4", 0)],
                            glass=False, **{"hidden-specializations": [{"appearance": "tinted", "value": True}]}))
@@ -162,7 +174,7 @@ FH = BAR*0.56
 fresnel = layer("fresnel", "".join('<path d="%s"/>' % rr(FX + FW*(i + 1)/(n + 1) - 4, CY0 - FH*0.29, 8, FH*0.58, 4) for i in range(n)),
                 fills(solid("#D89A00", 0.4), solid("#B88600", 0.45), solid("#9A9A9A", 0.4)))
 FH = BAR*0.56
-flash = shape("flash", rr(FX, CY0 - FH/2, FW, FH, FH*0.37), fills(lin("#FFE070", "#FFF6D0"), lin("#FFE070", "#FFF0C0"), solid("#FFFFFF")))
+flash = shape("flash", rr(FX, CY0 - FH/2, FW, FH, FH*0.37), fills(lin("#FFE680", "#FFFBEA"), lin("#FFE680", "#FFF6D8"), solid("#FFFFFF")))
 chrome = glare + [lights, fresnel, flash]
 if P["url"]:
     ux0 = X + 66 + lr*6.4 + 40
@@ -189,7 +201,7 @@ group("Body", [shape("toolbar", top_rr(X, Y, W, BAR, R), fills(solid("#FFFFFF", 
 g = P["glow"]
 cd, cb = blobs(CANVAS, (0, 0, 1024, 1024), "c")
 dd, db = blobs(CANVAS_DARK, (0, 0, 1024, 1024), "d")
-group("Canvas", [radial("glow", FCX, CY0, P["glow_r"], P["glow_r"], [(0, "#FFFFFF", 0.95*g), (0.35, "#FFF6DA", 0.55*g), (1, "#FFF6DA", 0)]),
+group("Canvas", [radial("glow", FCX, CY0, P["glow_r"], P["glow_r"], soft("#FFFFFF", "#FFF6DA", g, k=5.0), glass=False),
                  layer("canvas-dark", "<defs>%s</defs>%s" % (dd, db), hidden=DARK_ONLY),
                  layer("canvas", "<defs>%s</defs>%s" % (cd, cb), hidden=LIGHT_ONLY_UNTINTED)],
       specular=False, shadow={"kind": "none", "opacity": 0}, translucency={"enabled": False, "value": 0})
