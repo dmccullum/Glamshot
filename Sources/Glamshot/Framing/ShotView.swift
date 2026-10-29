@@ -130,9 +130,9 @@ struct ShotView<Page: View>: View {
         .background {
             if shadowStrength > 0 {
                 shape.fill(.black)
-                    .shadow(color: .black.opacity(0.38 * shadowStrength), radius: ChromeMetrics.shadowRadius * shadowStrength,
+                    .shadow(color: .black.opacity(0.56 * shadowStrength), radius: ChromeMetrics.shadowRadius * shadowStrength,
                             y: ChromeMetrics.shadowOffset * shadowStrength)
-                    .shadow(color: .black.opacity(0.18 * shadowStrength), radius: 2, y: 1)
+                    .shadow(color: .black.opacity(0.26 * shadowStrength), radius: 2, y: 1)
             }
         }
     }
