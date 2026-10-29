@@ -9,10 +9,10 @@ let package = Package(
         .executable(name: "Glamshot", targets: ["Glamshot"])
     ],
     dependencies: [
-        // The family's shared package, checked out next to this repository.
-        .package(path: "../DMKit"),
+        // The family's shared package.
+        .package(url: "https://github.com/dmccullum/DMKit.git", from: "1.0.0"),
         // Undertone's gradient renderer, for canvas and desktop backgrounds.
-        .package(path: "../Undertone")
+        .package(url: "https://github.com/dmccullum/Undertone.git", from: "0.1.0")
     ],
     targets: [
         // Value types and layout math, usable from any isolation (App Intents entities need that).

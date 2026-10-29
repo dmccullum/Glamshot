@@ -1,0 +1,24 @@
+{
+  "originHash" : "a0c357c0add53fd726b10364f9e9aec6107e0fdc802bc39caa300dddc3a02850",
+  "pins" : [
+    {
+      "identity" : "dmkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/dmccullum/DMKit.git",
+      "state" : {
+        "revision" : "a77e75290c0e2d34adff06da5054e7e0e8dc9234",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "undertone",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/dmccullum/Undertone.git",
+      "state" : {
+        "revision" : "6ebeda1773517d31446172360c6ef2cb8e9a9543",
+        "version" : "0.1.0"
+      }
+    }
+  ],
+  "version" : 3
+}
