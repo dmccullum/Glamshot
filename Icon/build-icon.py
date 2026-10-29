@@ -26,7 +26,7 @@ if not OUT.rstrip("/").endswith(".icon"):
 # bg: "bright" (with a pale corner) or "deep".
 P = {"band": None, "body": "light", "toolbar": "light", "bg": "deep", "url": False, "lines": 0,
      "bar": 196, "photo_r": 186, "ring": 26, "light_r": 44, "flash_w": 240, "bloom": 170, "streak": False,
-     "glow": 0.7, "glow_r": 300}
+     "glow": 0.7, "glow_r": 300, "bloom_dark": 175, "bloom_dark_peak": 1.0, "glow_dark": 0.4}
 if len(sys.argv) > 2:
     P.update(json.loads(sys.argv[2]))
 A = os.path.join(OUT, "Assets")
@@ -162,7 +162,11 @@ group("Photo", [layer("trim", ring(PCX, PCY, PR + P["ring"], PR - 2), fills(soli
       specular=True, lighting="combined", shadow={"kind": "neutral", "opacity": 0.45}, translucency={"enabled": True, "value": 0.1})
 
 # Chrome: flash glare (no glass, so it stays soft), traffic lights, flash window, band and page.
-glare = [radial("bloom", FCX, CY0, P["bloom"], P["bloom"], soft("#FFFFFF", "#FFF6D8", 1.0, k=3.5, hold=0.32), glass=False)]
+# Dark mode gets a tighter, dimmer bloom: the light one spreads into a grey haze over graphite.
+glare = [radial("bloom-dark", FCX, CY0, P["bloom_dark"], P["bloom_dark"], soft("#FFFFFF", "#FFF6D8", P["bloom_dark_peak"], k=7.0, hold=0.45),
+                glass=False, **{"hidden-specializations": DARK_ONLY}),
+         radial("bloom", FCX, CY0, P["bloom"], P["bloom"], soft("#FFFFFF", "#FFF6D8", 1.0, k=3.5, hold=0.32),
+                glass=False, **{"hidden-specializations": LIGHT_ONLY})]
 if P["streak"]:
     glare.insert(0, radial("streak", FCX, CY0, 420, 26, [(0, "#FFFFFF", 0.95), (0.5, "#FFF8E4", 0.35), (1, "#FFF8E4", 0)],
                            glass=False, **{"hidden-specializations": [{"appearance": "tinted", "value": True}]}))
@@ -201,7 +205,10 @@ group("Body", [shape("toolbar", top_rr(X, Y, W, BAR, R), fills(solid("#FFFFFF", 
 g = P["glow"]
 cd, cb = blobs(CANVAS, (0, 0, 1024, 1024), "c")
 dd, db = blobs(CANVAS_DARK, (0, 0, 1024, 1024), "d")
-group("Canvas", [radial("glow", FCX, CY0, P["glow_r"], P["glow_r"], soft("#FFFFFF", "#FFF6DA", g, k=5.0), glass=False),
+group("Canvas", [radial("glow-dark", FCX, CY0, P["glow_r"], P["glow_r"], soft("#FFFFFF", "#FFF6DA", P["glow_dark"], k=5.0),
+                        glass=False, **{"hidden-specializations": DARK_ONLY}),
+                 radial("glow", FCX, CY0, P["glow_r"], P["glow_r"], soft("#FFFFFF", "#FFF6DA", g, k=5.0),
+                        glass=False, **{"hidden-specializations": LIGHT_ONLY}),
                  layer("canvas-dark", "<defs>%s</defs>%s" % (dd, db), hidden=DARK_ONLY),
                  layer("canvas", "<defs>%s</defs>%s" % (cd, cb), hidden=LIGHT_ONLY_UNTINTED)],
       specular=False, shadow={"kind": "none", "opacity": 0}, translucency={"enabled": False, "value": 0})

@@ -104,9 +104,29 @@
       "name": "Chrome",
       "layers": [
         {
+          "name": "bloom-dark",
+          "image-name": "bloom-dark.svg",
+          "glass": false,
+          "hidden-specializations": [
+            {
+              "value": true
+            },
+            {
+              "appearance": "dark",
+              "value": false
+            }
+          ]
+        },
+        {
           "name": "bloom",
           "image-name": "bloom.svg",
-          "glass": false
+          "glass": false,
+          "hidden-specializations": [
+            {
+              "appearance": "dark",
+              "value": true
+            }
+          ]
         },
         {
           "name": "lights",
@@ -262,9 +282,29 @@
       "name": "Canvas",
       "layers": [
         {
+          "name": "glow-dark",
+          "image-name": "glow-dark.svg",
+          "glass": false,
+          "hidden-specializations": [
+            {
+              "value": true
+            },
+            {
+              "appearance": "dark",
+              "value": false
+            }
+          ]
+        },
+        {
           "name": "glow",
           "image-name": "glow.svg",
-          "glass": false
+          "glass": false,
+          "hidden-specializations": [
+            {
+              "appearance": "dark",
+              "value": true
+            }
+          ]
         },
         {
           "name": "canvas-dark",
