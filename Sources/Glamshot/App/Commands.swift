@@ -117,16 +117,16 @@ struct GlamshotCommands: Commands {
             Divider()
             Toggle("Screen", isOn: Binding(
                 get: { model?.capture.fullPage == false },
-                set: { _ in model?.setCapture(as: "Turn Off Full Page") { $0.fullPage = false } }
+                set: { _ in model?.setFullPage(false) }
             ))
             .keyboardShortcut("1")
             .disabled(model == nil)
             Toggle("Full Page", isOn: Binding(
                 get: { model?.capture.fullPage ?? false },
-                set: { _ in model?.setCapture(as: "Turn On Full Page") { $0.fullPage = true } }
+                set: { _ in model?.setFullPage(true) }
             ))
             .keyboardShortcut("2")
-            .disabled(model == nil || model?.effectiveLook.backdrop == .desktop)
+            .disabled(model == nil)
             Divider()
         }
 

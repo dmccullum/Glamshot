@@ -109,21 +109,17 @@ struct ShootToolbar: ToolbarContent {
             .frame(minWidth: 360, idealWidth: 720, maxWidth: .infinity)
         }
         // One screen or the whole page decides most of the rest, so it sits at the top right, as
-        // Granular's mode does. A desktop is always one screen, so it has no choice to show.
+        // Granular's mode does. It shows for every frame; Full Page moves Safari to Page and Desktop
+        // to Canvas.
         ToolbarItem(placement: .primaryAction) {
-            if model.effectiveLook.backdrop != .desktop {
-                Picker("Capture", selection: Binding(
-                    get: { model.capture.fullPage },
-                    set: { value in model.setCapture(as: value ? "Turn On Full Page" : "Turn Off Full Page") { $0.fullPage = value } }
-                )) {
-                    Text("Screen").tag(false).help("One screen at the output size (⌘1)")
-                    Text("Full Page").tag(true).help("The page’s whole length (⌘2)")
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .help("Photograph one screen or the full page (⌘1, ⌘2)")
+            Picker("Capture", selection: Binding(get: { model.capture.fullPage }, set: { model.setFullPage($0) })) {
+                Text("Screen").tag(false).help("One screen at the output size (⌘1)")
+                Text("Full Page").tag(true).help("The page’s whole length (⌘2)")
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("Photograph one screen or the full page (⌘1, ⌘2)")
         }
         // Save, copy, export and share, to the right of the mode, as in Granular.
         ToolbarItem(placement: .primaryAction) {

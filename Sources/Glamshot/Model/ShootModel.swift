@@ -370,6 +370,22 @@ final class ShootModel {
         return FrameStyle.allCases
     }
 
+    /// Photographs one screen or the full page. A full page has no Safari window or desktop, so
+    /// turning it on moves a Safari frame to Page and a Desktop to Canvas, in the same undo step.
+    func setFullPage(_ fullPage: Bool) {
+        guard fullPage != capture.fullPage else { return }
+        beginGesture()
+        if fullPage {
+            switch look.frameStyle {
+            case .safari: look.frameStyle = .page
+            case .desktop: look.frameStyle = .canvas
+            case .page, .canvas: break
+            }
+        }
+        capture.fullPage = fullPage
+        endGesture(as: fullPage ? "Turn On Full Page" : "Turn Off Full Page")
+    }
+
     func setFrameStyle(_ style: FrameStyle) {
         setLook(as: "Change Frame") { $0.frameStyle = style }
     }
