@@ -12,6 +12,8 @@ struct FrameContext {
     var isDark: Bool
     /// The Custom address text.
     var customAddress: String = ""
+    /// The color along the page's top edge, for Safari on iPhone's status bar.
+    var pageTopColor: NSColor? = nil
 
     /// What the address field shows for an address setting.
     func address(_ setting: SafariOptions.Address) -> String {
@@ -98,7 +100,7 @@ struct ShotView<Page: View>: View {
             if look.window == .safari {
                 switch look.safari.device {
                 case .iPhone:
-                    StatusBarView(device: .iPhone, isDark: chromeIsDark, width: layout.windowRect.width)
+                    StatusBarView(device: .iPhone, isDark: chromeIsDark, width: layout.windowRect.width, pageColor: context.pageTopColor)
                 case .iPad:
                     IPadSafariChrome(options: look.safari, isDark: chromeIsDark, context: context, width: layout.windowRect.width)
                 case .mac, .automatic:
@@ -172,6 +174,8 @@ enum ShotRenderer {
     /// Frames a photographed page at the photograph's scale.
     @MainActor
     static func render(page: PageCapture, look: Look, output: CGSize, fullPage: Bool, context: FrameContext) async throws -> CGImage {
+        var context = context
+        context.pageTopColor = page.image.topEdgeColor() ?? context.pageTopColor
         let layout = FrameLayout.make(output: output, look: look, pageHeight: fullPage ? page.pointSize.height : nil)
         var background: CGImage?
         if look.backdrop != .none, case .gradient(let name, let seed) = look.background {
@@ -194,5 +198,24 @@ enum ShotRenderer {
         renderer.isOpaque = look.backdrop != .none
         guard let image = renderer.cgImage else { throw CaptureError.imageTooLarge }
         return image
+    }
+}
+
+extension CGImage {
+    /// The average color of the top two rows, or nil if it can't be read.
+    func topEdgeColor() -> NSColor? {
+        let sampleWidth = 64
+        var data = [UInt8](repeating: 0, count: sampleWidth * 2 * 4)
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: &data, width: sampleWidth, height: 2, bitsPerComponent: 8, bytesPerRow: sampleWidth * 4,
+                                      space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        // Draw the whole image squeezed to 64 pixels wide, top rows in view.
+        let scale = CGFloat(sampleWidth) / CGFloat(width)
+        context.interpolationQuality = .medium
+        context.draw(self, in: CGRect(x: 0, y: 2 - CGFloat(height) * scale, width: CGFloat(sampleWidth), height: CGFloat(height) * scale))
+        var r = 0, g = 0, b = 0
+        for i in stride(from: 0, to: data.count, by: 4) { r += Int(data[i]); g += Int(data[i + 1]); b += Int(data[i + 2]) }
+        let n = CGFloat(data.count / 4) * 255
+        return NSColor(srgbRed: CGFloat(r) / n, green: CGFloat(g) / n, blue: CGFloat(b) / n, alpha: 1)
     }
 }

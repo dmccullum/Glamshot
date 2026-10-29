@@ -152,7 +152,24 @@ final class ShootModel {
         return components.url
     }
 
+    /// The page's top edge color, for the iPhone status bar in the window.
+    private(set) var pageTopColor: NSColor?
+
+    /// Samples the top of the live page a moment after it changes.
+    func refreshPageTopColor() {
+        Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            let configuration = WKSnapshotConfiguration()
+            configuration.rect = CGRect(x: 0, y: 0, width: webView.bounds.width, height: 2)
+            configuration.snapshotWidth = 64
+            guard let image = try? await webView.takeSnapshot(configuration: configuration) else { return }
+            var rect = CGRect(origin: .zero, size: image.size)
+            pageTopColor = image.cgImage(forProposedRect: &rect, context: nil, hints: nil)?.topEdgeColor()
+        }
+    }
+
     fileprivate func pageFinishedLoading() {
+        refreshPageTopColor()
         applyHiddenSelectors()
         if capture.fullPage { refreshFullPagePreview() }
     }
@@ -177,6 +194,25 @@ final class ShootModel {
     var sizeName: String {
         currentPreset?.name ?? "\(capture.width) × \(capture.height)"
     }
+
+    /// Size › Custom: the last custom size, or the current one when there's none.
+    var isCustomSize: Bool { currentPreset == nil }
+
+    func chooseCustomSize() {
+        guard !isCustomSize else { return }
+        chosenPresetID = nil
+        let size = Defaults.shared.customSize
+        setCapture(as: "Choose Custom Size") {
+            $0.width = Int(size.width)
+            $0.height = Int(size.height)
+        }
+        // A remembered custom size can match a preset; nudge it so Custom stays chosen.
+        if currentPreset != nil { capture.width += 1 }
+        focusSizeRequest += 1
+    }
+
+    /// Bumped to put the cursor in the width field.
+    var focusSizeRequest = 0
 
     func choose(_ preset: SizePreset) {
         chosenPresetID = preset.id
@@ -244,6 +280,9 @@ final class ShootModel {
             webView.appearance = NSAppearance(named: capture.appearance == .dark ? .darkAqua : .aqua)
         }
         if capture.hiddenSelectors != old.hiddenSelectors { applyHiddenSelectors() }
+        if capture.outputSize != old.outputSize, currentPreset == nil, remembersSettings {
+            Defaults.shared.customSize = capture.outputSize
+        }
         if capture.outputSize != old.outputSize || capture.zoom != old.zoom || capture.fullPage != old.fullPage { applyViewport() }
         if capture.fullPage != old.fullPage || capture.outputSize != old.outputSize || capture.zoom != old.zoom
             || capture.scale != old.scale {
@@ -254,7 +293,7 @@ final class ShootModel {
     }
 
     private func lookDidChange(from old: Look) {
-        if look.backdrop == .desktop, capture.fullPage { capture.fullPage = false }
+        if look.resolved(for: capture.outputSize).backdrop == .desktop, capture.fullPage { capture.fullPage = false }
         if pageSize(for: look) != pageSize(for: old) {
             applyViewport()
             fullPagePreview = nil
@@ -284,6 +323,7 @@ final class ShootModel {
     func applyViewport() {
         webView.setFrameSize(pageSize)
         webView.pageZoom = capture.zoom
+        refreshPageTopColor()
     }
 
     private func applyHiddenSelectors() {
@@ -312,6 +352,22 @@ final class ShootModel {
         """
 
     // MARK: Desktop window
+
+    /// The canvas padding actually used: the automatic amount or the custom one.
+    var effectivePadding: CGFloat {
+        look.canvas.autoPadding ? FrameLayout.automaticPadding(for: capture.outputSize) : look.canvas.padding
+    }
+
+    /// The desktop window's width as a share of the desktop. Setting it scales the window evenly.
+    var desktopWindowScale: Double {
+        get { look.desktop.widthFraction }
+        set {
+            let ratio = look.desktop.heightFraction / max(look.desktop.widthFraction, 0.01)
+            let width = min(max(newValue, 0.3), 1)
+            look.desktop.widthFraction = width
+            look.desktop.heightFraction = min(max(width * ratio, 0.3), 1)
+        }
+    }
 
     func centerDesktopWindow() {
         setLook(as: "Center Window") {
@@ -349,7 +405,7 @@ final class ShootModel {
     func render(look: Look? = nil, capture: CaptureOptions? = nil) async throws -> RenderedShot {
         let look = look ?? self.look
         var options = capture ?? self.capture
-        if look.backdrop == .desktop { options.fullPage = false }
+        if look.resolved(for: options.outputSize).backdrop == .desktop { options.fullPage = false }
         options.delay = Defaults.shared.waitAfterLoading
 
         // Lay the page out in the room this look leaves in this output, then put the view back.
@@ -371,7 +427,8 @@ final class ShootModel {
     }
 
     var frameContext: FrameContext {
-        FrameContext(url: url, title: title, isDark: capture.appearance == .dark, customAddress: customAddress)
+        FrameContext(url: url, title: title, isDark: capture.appearance == .dark, customAddress: customAddress,
+                     pageTopColor: pageTopColor)
     }
 
     /// The address a Custom address field shows, such as a production domain over a staging page.

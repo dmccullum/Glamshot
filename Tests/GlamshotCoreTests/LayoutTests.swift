@@ -98,8 +98,8 @@ struct SafariDeviceTests {
         #expect(options.resolvedDevice(for: CGSize(width: 360, height: 780)) == .iPhone)
     }
 
-    @Test func aChosenDeviceWins() {
-        #expect(SafariOptions(device: .mac).resolvedDevice(for: CGSize(width: 402, height: 874)) == .mac)
+    @Test func theSizeAlwaysDecides() {
+        #expect(SafariOptions(device: .mac).resolvedDevice(for: CGSize(width: 402, height: 874)) == .iPhone)
     }
 
     @Test func iPhoneTakesOnlyTheStatusBar() {

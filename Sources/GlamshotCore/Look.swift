@@ -37,11 +37,13 @@ public struct Look: Codable, Hashable, Identifiable, Sendable {
         self.shadow = shadow
     }
 
-    /// This look as drawn for an output: its Safari device worked out, and for a full page no
-    /// window and no desktop, since no browser shows a whole page at once.
+    /// This look as drawn for an output: its Safari device worked out from the size; a desktop
+    /// only for Mac sizes; and for a full page no window and no desktop, since no browser shows a
+    /// whole page at once.
     public func resolved(for output: CGSize, fullPage: Bool = false) -> Look {
         var look = self
         look.safari.device = safari.resolvedDevice(for: output)
+        if look.safari.device != .mac, look.backdrop == .desktop { look.backdrop = .canvas }
         if fullPage {
             look.window = .none
             if look.backdrop == .desktop { look.backdrop = .canvas }
@@ -96,8 +98,8 @@ public struct SafariOptions: Codable, Hashable, Sendable {
         }
     }
 
-    /// Which Safari to draw. Automatic follows the output size: iPhone sizes get Safari on
-    /// iPhone, iPad sizes Safari on iPad, everything else Safari on the Mac.
+    /// Which Safari is drawn. It always follows the output size (see `resolvedDevice(for:)`): iPhone
+    /// sizes get Safari on iPhone, iPad sizes Safari on iPad, everything else Safari on the Mac.
     public enum Device: String, Codable, CaseIterable, Sendable {
         case automatic, mac, iPad, iPhone
 
@@ -129,16 +131,15 @@ public struct SafariOptions: Codable, Hashable, Sendable {
         self.showsTabBar = showsTabBar
     }
 
-    /// The device to draw for an output size: Automatic picks iPhone for phone-width outputs and
-    /// iPad for the iPad sizes.
+    /// The device to draw for an output size: iPhone for phone sizes and phone-shaped custom sizes,
+    /// iPad for the iPad sizes, otherwise the Mac.
     public func resolvedDevice(for output: CGSize) -> Device {
-        guard device == .automatic else { return device }
         let match = SizePreset.builtIns.first { CGFloat($0.width) == output.width && CGFloat($0.height) == output.height }
         switch match?.group {
         case .phone: return .iPhone
         case .tablet: return .iPad
+        case .some(.custom), nil: return output.width <= 500 && output.height > output.width ? .iPhone : .mac
         case .some: return .mac
-        case nil: return output.width <= 500 && output.height > output.width ? .iPhone : .mac
         }
     }
 }

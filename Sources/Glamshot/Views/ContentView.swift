@@ -135,7 +135,7 @@ struct ShootToolbar: ToolbarContent {
         // One screen or the whole page decides most of the rest, so it sits at the top right, as
         // Granular's mode does. A desktop is always one screen, so it has no choice to show.
         ToolbarItem(placement: .primaryAction) {
-            if model.look.backdrop != .desktop {
+            if model.effectiveLook.backdrop != .desktop {
                 Picker("Capture", selection: Binding(
                     get: { model.capture.fullPage },
                     set: { value in model.setCapture(as: value ? "Turn On Full Page" : "Turn Off Full Page") { $0.fullPage = value } }

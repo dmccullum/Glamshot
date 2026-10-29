@@ -132,7 +132,7 @@ struct GlamshotCommands: Commands {
                 set: { _ in model?.setCapture(as: "Turn On Full Page") { $0.fullPage = true } }
             ))
             .keyboardShortcut("2")
-            .disabled(model == nil || model?.look.backdrop == .desktop)
+            .disabled(model == nil || model?.effectiveLook.backdrop == .desktop)
             Divider()
         }
 
@@ -154,6 +154,8 @@ struct GlamshotCommands: Commands {
                 .disabled(!hasPage || !(model?.capture.fullPage ?? false))
             Divider()
             Menu("Size") {
+                Button("Custom") { model?.chooseCustomSize() }
+                Divider()
                 ForEach(Defaults.shared.allPresets) { preset in
                     Button(preset.name) { model?.choose(preset) }
                 }
@@ -219,9 +221,9 @@ struct GlamshotCommands: Commands {
             }
             .disabled(model == nil || model?.look.backdrop == Backdrop.none)
             Button("Center Window") { model?.centerDesktopWindow() }
-                .disabled(model?.look.backdrop != .desktop)
+                .disabled(model?.effectiveLook.backdrop != .desktop)
             Button("Fill Desktop") { model?.fillDesktop() }
-                .disabled(model?.look.backdrop != .desktop)
+                .disabled(model?.effectiveLook.backdrop != .desktop)
         }
 
         CommandMenu("Bookmarks") {

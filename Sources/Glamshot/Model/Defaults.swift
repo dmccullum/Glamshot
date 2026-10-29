@@ -17,6 +17,8 @@ final class Defaults {
     var format: ImageFormat { didSet { store.set(format.rawValue, forKey: "format") } }
     var jpegQuality: Double { didSet { store.set(jpegQuality, forKey: "jpegQuality") } }
     var saveFolder: URL? { didSet { store.set(saveFolder, forKey: "saveFolder") } }
+    /// The last size typed that isn't a preset, for Size › Custom.
+    var customSize: CGSize { didSet { store.set([customSize.width, customSize.height], forKey: "customSize") } }
     /// Seconds to wait after a page settles before photographing it, for animations and late content.
     var waitAfterLoading: Double { didSet { store.set(waitAfterLoading, forKey: "waitAfterLoading") } }
 
@@ -29,6 +31,8 @@ final class Defaults {
         jpegQuality = store.object(forKey: "jpegQuality") as? Double ?? 0.9
         saveFolder = store.url(forKey: "saveFolder")
         waitAfterLoading = store.object(forKey: "waitAfterLoading") as? Double ?? 0.5
+        let custom = store.array(forKey: "customSize") as? [Double] ?? [1440, 900]
+        customSize = CGSize(width: custom.first ?? 1440, height: custom.last ?? 900)
     }
 
     var allPresets: [SizePreset] { SizePreset.builtIns + customPresets }

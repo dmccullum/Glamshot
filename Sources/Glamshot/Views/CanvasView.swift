@@ -59,7 +59,7 @@ struct CanvasView: View {
                             .help("Edit the Address Shown in the Window")
                             .popover(isPresented: $isEditingAddress) { AddressEditor(model: model) }
                     }
-                    if model.look.backdrop == .desktop {
+                    if look.backdrop == .desktop {
                         DesktopWindowHandles(model: model, layout: layout, scale: scale)
                     }
                 }
@@ -207,8 +207,9 @@ struct WebHost: NSViewRepresentable {
         host.viewport = viewport
         host.layer?.cornerRadius = max(bottomCornerRadius, topCornerRadius)
         var corners: CACornerMask = []
-        if bottomCornerRadius > 0 { corners.formUnion([.layerMinXMinYCorner, .layerMaxXMinYCorner]) }
-        if topCornerRadius > 0 { corners.formUnion([.layerMinXMaxYCorner, .layerMaxXMaxYCorner]) }
+        // The host view is flipped, so its layer's max-Y corners are the bottom ones.
+        if bottomCornerRadius > 0 { corners.formUnion([.layerMinXMaxYCorner, .layerMaxXMaxYCorner]) }
+        if topCornerRadius > 0 { corners.formUnion([.layerMinXMinYCorner, .layerMaxXMinYCorner]) }
         host.layer?.maskedCorners = corners
         host.needsLayout = true
     }

@@ -2,13 +2,14 @@ import AppKit
 import GlamshotCore
 import WebKit
 
-/// `Glamshot --capture <url> <file.png> [--full-page] [--size WxH] [--scale N]`: photographs a page
-/// with no frame, writes a PNG and quits. For scripts and for checking a site's capture.
+/// `Glamshot --capture <url> <file.png> [--full-page] [--size WxH] [--scale N] [--safari] [--canvas |
+/// --desktop] [--dark]`: photographs a page, writes a PNG and quits. For scripts and for checking a
+/// site's capture.
 @MainActor
 enum CommandLineCapture {
     static func run(_ arguments: [String]) async {
         guard arguments.count >= 2, let url = URL(string: arguments[0]) else {
-            print("Usage: Glamshot --capture <url> <file.png> [--full-page] [--size WxH] [--scale N]")
+            print("Usage: Glamshot --capture <url> <file.png> [--full-page] [--size WxH] [--scale N] [--safari] [--canvas | --desktop] [--dark]")
             exit(2)
         }
         let output = URL(fileURLWithPath: arguments[1])
@@ -20,9 +21,14 @@ enum CommandLineCapture {
         if let i = arguments.firstIndex(of: "--scale"), arguments.indices.contains(i + 1), let scale = Int(arguments[i + 1]) {
             options.scale = scale
         }
-        let look = Look(name: "Bare", window: .none, backdrop: .none, shadow: 0)
+        var look = Look(name: "Bare", window: .none, backdrop: .none, shadow: 0)
+        if arguments.contains("--safari") { look.window = .safari }
+        if arguments.contains("--canvas") { look.backdrop = .canvas; look.shadow = 0.7 }
+        if arguments.contains("--desktop") { look.backdrop = .desktop; look.shadow = 0.7 }
+        if arguments.contains("--dark") { options.appearance = .dark }
         do {
             let shoot = try await HeadlessShoot(url: url, viewport: options.outputSize)
+            shoot.model.capture.appearance = options.appearance
             defer { shoot.close() }
             let shot = try await shoot.model.render(look: look, capture: options)
             try shot.write(to: output, format: .png)

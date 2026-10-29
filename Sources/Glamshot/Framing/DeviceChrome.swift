@@ -7,8 +7,17 @@ struct StatusBarView: View {
     let device: SafariOptions.Device
     let isDark: Bool
     let width: CGFloat
+    /// The page's top edge, which Safari on iPhone carries up behind the status bar.
+    var pageColor: NSColor? = nil
 
-    private var foreground: Color { isDark ? .white : .black }
+    private var background: Color {
+        pageColor.map(Color.init(nsColor:)) ?? (isDark ? .black : .white)
+    }
+
+    private var foreground: Color {
+        if let pageColor { return pageColor.luminance < 0.55 ? .white : .black }
+        return isDark ? .white : .black
+    }
 
     var body: some View {
         Group {
@@ -16,7 +25,7 @@ struct StatusBarView: View {
         }
         .foregroundStyle(foreground)
         .frame(width: width)
-        .background(isDark ? Color.black : Color.white)
+        .background(background)
         .environment(\.colorScheme, isDark ? .dark : .light)
     }
 

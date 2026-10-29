@@ -31,8 +31,9 @@ private struct OutputCard: View {
     let model: ShootModel
     @State private var width = ""
     @State private var height = ""
+    @FocusState private var widthFocused: Bool
 
-    private var isDesktop: Bool { model.look.backdrop == .desktop }
+    private var isDesktop: Bool { model.effectiveLook.backdrop == .desktop }
 
     var body: some View {
         InspectorCard("Output", systemImage: "photo") {
@@ -40,6 +41,7 @@ private struct OutputCard: View {
         } content: {
             StackedControl("Size") {
                 Menu {
+                    Toggle("Custom", isOn: Binding(get: { model.isCustomSize }, set: { _ in model.chooseCustomSize() }))
                     ForEach(SizePreset.Group.allCases, id: \.self) { group in
                         let presets = Defaults.shared.allPresets.filter { $0.group == group }
                         if !presets.isEmpty {
@@ -61,7 +63,7 @@ private struct OutputCard: View {
             }
 
             HStack(spacing: 6) {
-                TextField("Width", text: $width).onSubmit(commit)
+                TextField("Width", text: $width).onSubmit(commit).focused($widthFocused)
                 Text("×").foregroundStyle(.secondary)
                 if model.capture.fullPage {
                     // The page sets the height.
@@ -90,6 +92,7 @@ private struct OutputCard: View {
         }
         .onAppear(perform: syncFields)
         .onChange(of: model.capture) { syncFields() }
+        .onChange(of: model.focusSizeRequest) { widthFocused = true }
     }
 
     private var outputPixels: String {
@@ -176,15 +179,6 @@ private struct WindowCard: View {
             .controlSize(.small)
         } content: {
             if isOn {
-                StackedControl("Device") {
-                    FilledSegments("Device", selection: Binding(
-                        get: { model.look.safari.device },
-                        set: { value in model.setLook(as: "Change Safari Device") { $0.safari.device = value } }
-                    ), segments: SafariOptions.Device.allCases.map {
-                        .init(value: $0, title: $0 == .automatic ? "Auto" : $0.title,
-                              help: $0 == .automatic ? "Follows the output size: iPhone sizes get Safari on iPhone" : nil)
-                    })
-                }
                 if device == .iPhone {
                     StackedControl("Address Bar") {
                         FilledSegments("Address Bar", selection: Binding(
@@ -258,8 +252,8 @@ private struct BackdropCard: View {
             .controlSize(.small)
         } content: {
             if isOn {
-                // A full page can only sit on a canvas.
-                if !model.capture.fullPage {
+                // A full page, or an iPhone or iPad screen, can only sit on a canvas.
+                if !model.capture.fullPage, model.effectiveLook.safari.device == .mac {
                     FilledSegments("Backdrop", selection: Binding(
                         get: { model.look.backdrop },
                         set: { value in model.setBackdrop(value) }
@@ -289,20 +283,20 @@ private struct BackdropCard: View {
     }
 
     @ViewBuilder private var canvasControls: some View {
+        // Shows the padding in use; moving it sets your own, and Auto Padding goes back.
+        InspectorSlider("Padding", value: model.effectivePadding, in: 0...400,
+                        format: .init(unit: .points), snapsToStep: true) { value in
+            model.beginGesture()
+            model.look.canvas.autoPadding = false
+            model.look.canvas.padding = value
+        } commit: {
+            model.endGesture(as: "Change Padding")
+        }
         SwitchRow("Auto Padding", isOn: Binding(
             get: { model.look.canvas.autoPadding },
             set: { value in model.setLook(as: value ? "Turn On Auto Padding" : "Turn Off Auto Padding") { $0.canvas.autoPadding = value } }
         ))
         .help("Picks the padding from the output size")
-        if !model.look.canvas.autoPadding {
-            InspectorSlider("Padding", value: model.look.canvas.padding, in: 0...400, default: 96,
-                            format: .init(unit: .points), snapsToStep: true) { value in
-                model.beginGesture()
-                model.look.canvas.padding = value
-            } commit: {
-                model.endGesture(as: "Change Padding")
-            }
-        }
         if model.look.window == .none {
             InspectorSlider("Corner Radius", value: model.look.canvas.cornerRadius, in: 0...40, default: 14,
                             format: .init(unit: .points), snapsToStep: true) { value in
@@ -315,7 +309,14 @@ private struct BackdropCard: View {
     }
 
     @ViewBuilder private var desktopControls: some View {
-        StackedControl("Window") {
+        // Follows the window as it's dragged on the desktop.
+        InspectorSlider("Window Size", value: model.desktopWindowScale, in: 0.3...1, default: 0.8, format: .percent) { value in
+            model.beginGesture()
+            model.desktopWindowScale = value
+        } commit: {
+            model.endGesture(as: "Resize Window")
+        }
+        StackedControl("Window Position") {
             HStack {
                 Button { model.centerDesktopWindow() } label: { Text("Center Window").frame(maxWidth: .infinity) }
                 Button { model.fillDesktop() } label: { Text("Fill Desktop").frame(maxWidth: .infinity) }
