@@ -32,15 +32,21 @@ struct ContentView: View {
         .background(WindowReader { window in model.window = window })
         .onAppear {
             model.undoManager = undoManager
+            PendingOpen.shared.register(model)
             if model.url == nil, PendingOpen.shared.urls.isEmpty, let url = URL(string: savedAddress), !savedAddress.isEmpty { model.load(url) }
         }
         .onChange(of: undoManager) { model.undoManager = undoManager }
         // Without a split view the subtitle modifier only takes its first value.
         .onChange(of: subtitle) { model.window?.subtitle = subtitle }
         .onChange(of: PendingOpen.shared.urls, initial: true) {
-            guard model.window?.isKeyWindow ?? true, let url = PendingOpen.shared.take() else { return }
+            guard PendingOpen.shared.frontmost === model || model.window == nil,
+                  let url = PendingOpen.shared.take() else { return }
             model.load(url)
         }
+        .onDisappear { PendingOpen.shared.unregister(model) }
+        // Files opened from Finder go to an open window; SwiftUI makes one only when none is open.
+        .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+        .onOpenURL { url in model.load(CanvasView.resolved(url)) }
         .onChange(of: model.url) { savedAddress = model.url?.absoluteString ?? "" }
         .sheet(isPresented: $model.isChoosingExportSizes) {
             ExportSizesSheet(model: model)

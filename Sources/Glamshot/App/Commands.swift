@@ -309,17 +309,44 @@ enum StylePasteboard {
     static var look: Look?
 }
 
-/// Pages opened from Finder, the Dock or a menu with no window to take them. The key window,
-/// or the next one to open, loads them.
+/// Pages opened from Finder, the Dock or a menu. The frontmost Glamshot window loads them; with
+/// none open, a new window takes them when it appears.
 @MainActor
 @Observable
 final class PendingOpen {
     static let shared = PendingOpen()
     var urls: [URL] = []
+    /// Every open shoot, so a page can go to the frontmost one.
+    @ObservationIgnored private var shoots: [WeakShoot] = []
+
+    private struct WeakShoot { weak var model: ShootModel? }
+
+    func register(_ model: ShootModel) {
+        shoots.removeAll { $0.model == nil || $0.model === model }
+        shoots.append(WeakShoot(model: model))
+    }
+
+    func unregister(_ model: ShootModel) {
+        shoots.removeAll { $0.model == nil || $0.model === model }
+    }
+
+    /// The shoot whose window is frontmost.
+    var frontmost: ShootModel? {
+        let models = shoots.compactMap(\.model)
+        for window in NSApp.orderedWindows {
+            if let model = models.first(where: { $0.window === window }) { return model }
+        }
+        return models.last
+    }
 
     func open(_ new: [URL]) {
-        urls.append(contentsOf: new)
-        if NSApp.windows.contains(where: { $0.isVisible && $0.identifier?.rawValue.hasPrefix("shoot") == true }) == false {
+        guard let first = new.first else { return }
+        if let target = frontmost {
+            target.load(first)
+            target.window?.makeKeyAndOrderFront(nil)
+            urls.append(contentsOf: new.dropFirst())
+        } else {
+            urls.append(contentsOf: new)
             NSApp.sendAction(Selector(("newWindowForTab:")), to: nil, from: nil)
         }
     }

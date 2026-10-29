@@ -36,6 +36,15 @@ enum SelfTest {
             stage.close()
         }
 
+        // A window behind other apps (here, ordered out) still finishes a full-page capture.
+        let hidden = await Stage(fixtures.appending(path: "bands.html"), viewport: CGSize(width: 800, height: 600))
+        hidden.window.orderOut(nil)
+        if let capture = await attempt("hidden window full page", { try await hidden.photographer.capture(
+            CaptureOptions(width: 800, height: 600, scale: 1, fullPage: true, delay: 0)) }) {
+            check("hidden window full page height", capture.image.height == 5000, "\(capture.image.height)")
+        }
+        hidden.close()
+
         let hero = await Stage(fixtures.appending(path: "hero.html"), viewport: CGSize(width: 1512, height: 982))
         if let capture = await attempt("100vh hero", { try await hero.photographer.capture(
             CaptureOptions(width: 1512, height: 982, scale: 1, fullPage: true, delay: 0)) }) {
@@ -93,7 +102,9 @@ enum SelfTest {
         let photographer: PagePhotographer
 
         init(_ page: URL, viewport: CGSize) async {
-            webView = WKWebView(frame: CGRect(origin: .zero, size: viewport), configuration: WKWebViewConfiguration())
+            let configuration = WKWebViewConfiguration()
+            configuration.preferences.inactiveSchedulingPolicy = .none
+            webView = WKWebView(frame: CGRect(origin: .zero, size: viewport), configuration: configuration)
             window = NSWindow(contentRect: CGRect(origin: .zero, size: viewport), styleMask: [.borderless], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             let container = NSView(frame: CGRect(origin: .zero, size: viewport))

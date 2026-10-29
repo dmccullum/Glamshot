@@ -45,10 +45,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func application(_ application: NSApplication, open urls: [URL]) {
-        PendingOpen.shared.open(urls.map(CanvasView.resolved))
-    }
-
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {

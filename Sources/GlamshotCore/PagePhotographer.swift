@@ -56,10 +56,19 @@ public final class PagePhotographer {
         self.webView = webView
     }
 
+    /// The capture under way. Captures run one at a time, since a full-page capture resizes the view.
+    private var current: Task<PageCapture, any Error>?
+
     public func capture(_ options: CaptureOptions) async throws -> PageCapture {
         guard webView.url != nil else { throw CaptureError.noPage }
-        try await settle(delay: options.delay)
-        return options.fullPage ? try await captureFullPage(options) : try await captureViewport(options)
+        let previous = current
+        let task = Task {
+            _ = try? await previous?.value
+            try await settle(delay: options.delay)
+            return options.fullPage ? try await captureFullPage(options) : try await captureViewport(options)
+        }
+        current = task
+        return try await task.value
     }
 
     // MARK: Viewport
@@ -145,7 +154,7 @@ public final class PagePhotographer {
 
     /// Waits for web fonts and two frames, then the person's delay.
     func settle(delay: Double) async throws {
-        try await run("await document.fonts.ready;" + Self.nextFrameBody)
+        try await run("await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 2000))]);" + Self.nextFrameBody)
         if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
     }
 
@@ -158,7 +167,13 @@ public final class PagePhotographer {
         CGFloat((try await run(script) as? NSNumber)?.doubleValue ?? 0)
     }
 
-    private static let nextFrameBody = "await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));"
+    /// Two animation frames, or 150 ms when the window is hidden and WebKit stops drawing frames.
+    private static let nextFrameBody = """
+        await Promise.race([
+            new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))),
+            new Promise(r => setTimeout(r, 150))
+        ]);
+        """
     static let nextFrameScript = nextFrameBody
 
     /// Scrolls down a screen at a time so scroll-triggered content and lazy images appear.
@@ -191,7 +206,10 @@ public final class PagePhotographer {
                 el.style.setProperty('max-height', old + 'px', 'important');
             }
         }
-        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        await Promise.race([
+            new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))),
+            new Promise(r => setTimeout(r, 150))
+        ]);
         return document.scrollingElement.scrollHeight;
         """
 
@@ -199,7 +217,10 @@ public final class PagePhotographer {
         const pending = [...document.images].filter(i => !i.complete)
             .map(i => new Promise(r => { i.addEventListener('load', r); i.addEventListener('error', r); }));
         await Promise.race([Promise.all(pending), new Promise(r => setTimeout(r, 3000))]);
-        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        await Promise.race([
+            new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))),
+            new Promise(r => setTimeout(r, 150))
+        ]);
         """
 
     static let restoreScript = """

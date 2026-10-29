@@ -59,6 +59,9 @@ final class ShootModel {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         configuration.preferences.isElementFullscreenEnabled = true
+        // Keep timers and drawing running while the window is behind other apps, so a capture
+        // started from the menu or Shortcuts finishes.
+        configuration.preferences.inactiveSchedulingPolicy = .none
         configuration.userContentController.addUserScript(WKUserScript(
             source: Self.hidingScriptSource, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient
         ))
