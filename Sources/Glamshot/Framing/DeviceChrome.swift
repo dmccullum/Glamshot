@@ -37,11 +37,10 @@ struct StatusBarView: View {
                 .frame(maxWidth: .infinity)
             Spacer().frame(width: 126)
             HStack(spacing: 6) {
-                Image(systemName: "cellularbars")
-                Image(systemName: "wifi")
-                Image(systemName: "battery.100percent").font(.system(size: 21, weight: .regular))
+                SignalGlyph().frame(width: 18, height: 12)
+                WiFiGlyph().frame(width: 16, height: 12)
+                BatteryGlyph().frame(width: 27, height: 13)
             }
-            .font(.system(size: 15, weight: .semibold))
             .frame(maxWidth: .infinity)
         }
         .padding(.top, 6)
@@ -53,9 +52,9 @@ struct StatusBarView: View {
             Text("9:41").font(.system(size: 13, weight: .semibold))
             Text("Tue Oct 29").font(.system(size: 13, weight: .regular))
             Spacer(minLength: 0)
-            Image(systemName: "wifi").font(.system(size: 12, weight: .semibold))
+            WiFiGlyph().frame(width: 14, height: 10)
             Text("100%").font(.system(size: 13, weight: .regular))
-            Image(systemName: "battery.100percent").font(.system(size: 17))
+            BatteryGlyph().frame(width: 24, height: 11.5)
         }
         .padding(.horizontal, 20)
         .frame(height: ChromeMetrics.iPadStatusBarHeight)
@@ -213,4 +212,65 @@ struct AddressCapsule: View {
     }
 
     private var text: String { context.address(options.address) }
+}
+
+// iOS draws its own status bar glyphs rather than SF Symbols; these follow their proportions.
+
+/// Four bars of rising height, all full: full signal.
+struct SignalGlyph: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let gap = proxy.size.width * 0.09
+            let bar = (proxy.size.width - gap * 3) / 4
+            HStack(alignment: .bottom, spacing: gap) {
+                ForEach(0..<4) { index in
+                    RoundedRectangle(cornerRadius: bar * 0.35, style: .continuous)
+                        .frame(width: bar, height: proxy.size.height * (0.38 + 0.2067 * CGFloat(index)))
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .bottomLeading)
+        }
+    }
+}
+
+/// Three arcs and a dot, all full: full Wi-Fi.
+struct WiFiGlyph: View {
+    var body: some View {
+        Canvas { context, size in
+            let center = CGPoint(x: size.width / 2, y: size.height * 0.98)
+            let thickness = size.height * 0.17
+            for ring in 0..<3 {
+                let radius = size.height * (0.95 - CGFloat(ring) * 0.31)
+                var arc = Path()
+                arc.addArc(center: center, radius: radius - thickness / 2,
+                           startAngle: .degrees(-135), endAngle: .degrees(-45), clockwise: false)
+                context.stroke(arc, with: .foreground, style: StrokeStyle(lineWidth: thickness, lineCap: .round))
+            }
+            let dot = size.height * 0.2
+            context.fill(Path(ellipseIn: CGRect(x: center.x - dot / 2, y: center.y - dot, width: dot, height: dot)), with: .foreground)
+        }
+    }
+}
+
+/// A full battery: a faint outline with a solid fill and the terminal nub.
+struct BatteryGlyph: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let nub = proxy.size.width * 0.06
+            let body = CGSize(width: proxy.size.width - nub - 1, height: proxy.size.height)
+            let radius = body.height * 0.3
+            HStack(spacing: 1) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(.foreground.opacity(0.4), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: radius - 1.5, style: .continuous)
+                        .padding(2)
+                }
+                .frame(width: body.width, height: body.height)
+                UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: nub, topTrailingRadius: nub)
+                    .fill(.foreground.opacity(0.4))
+                    .frame(width: nub, height: body.height * 0.36)
+            }
+        }
+    }
 }
