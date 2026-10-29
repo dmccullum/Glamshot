@@ -28,6 +28,8 @@
 	<string>public.app-category.graphics-design</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 Daniel McCullum. Licensed under GPL-3.0.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Glamshot reads the address of Safari’s front page and open tabs so you can photograph them.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

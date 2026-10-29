@@ -1,0 +1,134 @@
+import DMKit
+import GlamshotCore
+import SwiftUI
+
+/// Lets the Safari window on a desktop be moved by its toolbar and resized by its edges and
+/// corners, like a real window. The page itself stays clickable.
+struct DesktopWindowHandles: View {
+    let model: ShootModel
+    let layout: FrameLayout
+    let scale: CGFloat
+
+    @State private var dragStart: (rect: CGRect, look: Look)?
+    @State private var isDragging = false
+
+    private static let edge: CGFloat = 8
+
+    var body: some View {
+        let rect = layout.windowRect
+        ZStack(alignment: .topLeading) {
+            // The toolbar moves the window.
+            Color.clear
+                .contentShape(Rectangle())
+                .frame(width: rect.width * scale, height: max(layout.chromeHeight, 24) * scale)
+                .offset(x: rect.minX * scale, y: rect.minY * scale)
+                .gesture(drag(name: "Move Window") { start, translation in
+                    CGRect(origin: CGPoint(x: start.minX + translation.width, y: start.minY + translation.height), size: start.size)
+                })
+                .pointerStyle(.grabIdle)
+
+            ForEach(Handle.allCases, id: \.self) { handle in
+                let frame = handle.frame(in: rect, edge: Self.edge / scale)
+                Color.clear
+                    .contentShape(Rectangle())
+                    .frame(width: frame.width * scale, height: frame.height * scale)
+                    .offset(x: frame.minX * scale, y: frame.minY * scale)
+                    .gesture(drag(name: "Resize Window") { start, translation in handle.resize(start, by: translation) })
+                    .pointerStyle(handle.pointer)
+            }
+
+            if isDragging {
+                Text("\(Int(rect.width)) × \(Int(rect.height))")
+                    .monospacedDigit()
+                    .font(.callout)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .floatingGlass(in: Capsule())
+                    .fixedSize()
+                    .frame(width: rect.width * scale)
+                    .offset(x: rect.minX * scale, y: (rect.maxY * scale) - 40)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    private func drag(name: String, _ transform: @escaping (CGRect, CGSize) -> CGRect) -> some Gesture {
+        DragGesture(minimumDistance: 2, coordinateSpace: .global)
+            .onChanged { value in
+                if dragStart == nil {
+                    dragStart = (layout.windowRect, model.look)
+                    model.beginGesture()
+                    isDragging = true
+                }
+                guard let start = dragStart else { return }
+                let translation = CGSize(width: value.translation.width / scale, height: value.translation.height / scale)
+                apply(transform(start.rect, translation), startLook: start.look)
+            }
+            .onEnded { _ in
+                dragStart = nil
+                isDragging = false
+                model.endGesture(as: name)
+            }
+    }
+
+    /// Writes a new window rect back as a size and a center fraction of the area below the menu bar.
+    private func apply(_ rect: CGRect, startLook: Look) {
+        let display = model.look.desktop.display.size
+        let area = CGRect(x: 0, y: ChromeMetrics.menuBarHeight, width: display.width, height: display.height - ChromeMetrics.menuBarHeight)
+        var look = model.look
+        let size = CGSize(
+            width: min(max(rect.width, FrameLayout.minimumWindowSize.width), area.width).rounded(),
+            height: min(max(rect.height, FrameLayout.minimumWindowSize.height), area.height).rounded()
+        )
+        look.desktop.windowSize = size
+        look.desktop.centerX = min(max((rect.midX - area.minX) / area.width, 0), 1)
+        look.desktop.centerY = min(max((rect.midY - area.minY) / area.height, 0), 1)
+        model.look = look
+    }
+
+    enum Handle: CaseIterable {
+        case top, bottom, leading, trailing, topLeading, topTrailing, bottomLeading, bottomTrailing
+
+        func frame(in rect: CGRect, edge: CGFloat) -> CGRect {
+            let corner = edge * 2
+            switch self {
+            case .top: return CGRect(x: rect.minX + corner, y: rect.minY - edge, width: rect.width - corner * 2, height: edge)
+            case .bottom: return CGRect(x: rect.minX + corner, y: rect.maxY, width: rect.width - corner * 2, height: edge)
+            case .leading: return CGRect(x: rect.minX - edge, y: rect.minY + corner, width: edge, height: rect.height - corner * 2)
+            case .trailing: return CGRect(x: rect.maxX, y: rect.minY + corner, width: edge, height: rect.height - corner * 2)
+            case .topLeading: return CGRect(x: rect.minX - edge, y: rect.minY - edge, width: corner, height: corner)
+            case .topTrailing: return CGRect(x: rect.maxX - edge, y: rect.minY - edge, width: corner, height: corner)
+            case .bottomLeading: return CGRect(x: rect.minX - edge, y: rect.maxY - edge, width: corner, height: corner)
+            case .bottomTrailing: return CGRect(x: rect.maxX - edge, y: rect.maxY - edge, width: corner, height: corner)
+            }
+        }
+
+        func resize(_ start: CGRect, by t: CGSize) -> CGRect {
+            var r = start
+            switch self {
+            case .top, .topLeading, .topTrailing: r.origin.y += t.height; r.size.height -= t.height
+            case .bottom, .bottomLeading, .bottomTrailing: r.size.height += t.height
+            default: break
+            }
+            switch self {
+            case .leading, .topLeading, .bottomLeading: r.origin.x += t.width; r.size.width -= t.width
+            case .trailing, .topTrailing, .bottomTrailing: r.size.width += t.width
+            default: break
+            }
+            return r
+        }
+
+        var pointer: PointerStyle {
+            switch self {
+            case .top: .frameResize(position: .top)
+            case .bottom: .frameResize(position: .bottom)
+            case .leading: .frameResize(position: .leading)
+            case .trailing: .frameResize(position: .trailing)
+            case .topLeading: .frameResize(position: .topLeading)
+            case .topTrailing: .frameResize(position: .topTrailing)
+            case .bottomLeading: .frameResize(position: .bottomLeading)
+            case .bottomTrailing: .frameResize(position: .bottomTrailing)
+            }
+        }
+    }
+}

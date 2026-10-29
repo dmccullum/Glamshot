@@ -1,0 +1,317 @@
+import AppKit
+import DMKit
+import GlamshotCore
+import SwiftUI
+import WebKit
+
+extension FocusedValues {
+    @Entry var shoot: ShootModel?
+    @Entry var inspectorShown: Binding<Bool>?
+    @Entry var shotsTrayShown: Binding<Bool>?
+}
+
+struct GlamshotCommands: Commands {
+    @FocusedValue(\.shoot) private var model
+    @FocusedValue(\.inspectorShown) private var inspectorShown
+    @FocusedValue(\.shotsTrayShown) private var shotsTrayShown
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
+    private let recents = RecentPages.shared
+    private let safari = SafariBridge.shared
+
+    private var hasPage: Bool { model?.hasPage ?? false }
+
+    var body: some Commands {
+        CommandGroup(after: .newItem) {
+            Button("Open Location…") { model?.focusAddress() }
+                .keyboardShortcut("l")
+                .disabled(model == nil)
+            Button("Open File…") { Task { await openFile() } }
+                .keyboardShortcut("o")
+            Menu("Open Recent") {
+                ForEach(recents.urls, id: \.self) { url in
+                    Button(FileNaming.domain(of: url).map { "\($0) — \(url.path())" } ?? url.lastPathComponent) { open(url) }
+                }
+                Divider()
+                Button("Clear Menu") { recents.clear() }.disabled(recents.urls.isEmpty)
+            }
+            Divider()
+            Button("Open Safari’s Front Page") { Task { await openSafariFrontPage() } }
+                .keyboardShortcut("l", modifiers: [.command, .option])
+            Menu("Open Safari Tab") {
+                if safari.tabs.isEmpty {
+                    Button("Read Safari’s Tabs") { Task { await safari.refreshTabs() } }
+                } else {
+                    ForEach(safari.tabs) { tab in
+                        Button(tab.title.isEmpty ? tab.url.absoluteString : tab.title) { open(tab.url) }
+                    }
+                    Divider()
+                    Button("Refresh") { Task { await safari.refreshTabs() } }
+                }
+            }
+        }
+
+        CommandGroup(replacing: .saveItem) {
+            Button("Close") { NSApp.keyWindow?.performClose(nil) }
+                .keyboardShortcut("w")
+            Divider()
+            Button("Save Image…") { Task { await model?.saveImage() } }
+                .keyboardShortcut("s")
+                .disabled(!hasPage)
+            Button("Export Sizes…") { Task { await model?.exportSizes() } }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(!hasPage || (model?.exportSizeIDs.isEmpty ?? true))
+            Divider()
+            Button("Show in Finder") {
+                if let file = model?.lastSavedFile { NSWorkspace.shared.activateFileViewerSelecting([file]) }
+            }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            .disabled(model?.lastSavedFile == nil)
+        }
+
+        CommandGroup(replacing: .pasteboard) {
+            Button("Cut") { NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil) }
+                .keyboardShortcut("x")
+            Button(textHasFocus ? "Copy" : "Copy Image") {
+                if textHasFocus {
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                } else {
+                    Task { await model?.copyImage() }
+                }
+            }
+            .keyboardShortcut("c")
+            Button("Paste") {
+                if textHasFocus {
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                } else if let string = NSPasteboard.general.string(forType: .string) {
+                    model?.load(string)
+                }
+            }
+            .keyboardShortcut("v")
+            Button("Select All") { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
+                .keyboardShortcut("a")
+            Divider()
+            Button("Copy Style") { copyStyle() }
+                .keyboardShortcut("c", modifiers: [.command, .option])
+                .disabled(model == nil)
+            Button("Paste Style") { pasteStyle() }
+                .keyboardShortcut("v", modifiers: [.command, .option])
+                .disabled(model == nil || StylePasteboard.look == nil)
+        }
+
+        CommandGroup(before: .sidebar) {
+            Button(inspectorShown?.wrappedValue == true ? "Hide Inspector" : "Show Inspector") {
+                inspectorShown?.wrappedValue.toggle()
+            }
+            .keyboardShortcut("i", modifiers: [.command, .option])
+            .disabled(inspectorShown == nil)
+            Button(shotsTrayShown?.wrappedValue == true ? "Hide Shots Tray" : "Show Shots Tray") {
+                shotsTrayShown?.wrappedValue.toggle()
+            }
+            .disabled(shotsTrayShown == nil)
+            Divider()
+            Button("Zoom In") { model?.zoom = .actual }
+                .keyboardShortcut("+")
+                .disabled(model == nil || model?.zoom == .actual)
+            Button("Zoom Out") { model?.zoom = .fit }
+                .keyboardShortcut("-")
+                .disabled(model == nil || model?.zoom == .fit)
+            Button("Zoom to Fit") { model?.zoom = .fit }
+                .keyboardShortcut("0")
+                .disabled(model == nil || model?.zoom == .fit)
+            Divider()
+            Toggle("Full Page", isOn: Binding(
+                get: { model?.capture.fullPage ?? false },
+                set: { value in model?.setCapture(as: value ? "Turn On Full Page" : "Turn Off Full Page") { $0.fullPage = value } }
+            ))
+            .keyboardShortcut("f", modifiers: [.command, .option])
+            .disabled(model == nil || model?.look.backdrop == .desktop)
+            Picker("Page Appearance", selection: Binding(
+                get: { model?.capture.appearance ?? .light },
+                set: { value in model?.setCapture(as: "Change Page Appearance") { $0.appearance = value } }
+            )) {
+                ForEach(CaptureOptions.Appearance.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .disabled(model == nil)
+            Divider()
+        }
+
+        CommandMenu("Page") {
+            Button("Back") { model?.goBack() }
+                .keyboardShortcut("[")
+                .disabled(!(model?.canGoBack ?? false))
+            Button("Forward") { model?.goForward() }
+                .keyboardShortcut("]")
+                .disabled(!(model?.canGoForward ?? false))
+            Divider()
+            Button("Reload Page") { model?.reload() }
+                .keyboardShortcut("r")
+                .disabled(!hasPage)
+            Button("Stop Loading") { model?.stop() }
+                .keyboardShortcut(".")
+                .disabled(!(model?.isLoading ?? false))
+            Button("Refresh Full-Page Preview") { model?.refreshFullPagePreview() }
+                .disabled(!hasPage || !(model?.capture.fullPage ?? false))
+            Divider()
+            Menu("Size") {
+                ForEach(Defaults.shared.allPresets) { preset in
+                    Button(preset.name) { model?.choose(preset) }
+                }
+            }
+            .disabled(model == nil || model?.look.backdrop == .desktop)
+            Divider()
+            Button("Cancel Export") { model?.cancel() }
+                .disabled(!(model?.canCancel ?? false))
+            Divider()
+            Button("Clear Website Data…") { Task { await clearWebsiteData() } }
+        }
+
+        CommandMenu("Look") {
+            ForEach(Array(Defaults.shared.allLooks.enumerated()), id: \.element.id) { index, look in
+                let button = Button(look.name) { model?.apply(look) }.disabled(model == nil)
+                if index < 9 {
+                    button.keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: [.command, .option])
+                } else {
+                    button
+                }
+            }
+            Divider()
+            Picker("Window", selection: Binding(
+                get: { model?.look.window ?? .safari },
+                set: { value in model?.setLook(as: "Change Window") { $0.window = value } }
+            )) {
+                ForEach(WindowStyle.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .disabled(model == nil)
+            Picker("Backdrop", selection: Binding(
+                get: { model?.look.backdrop ?? .none },
+                set: { value in model?.setLook(as: "Change Backdrop") { $0.backdrop = value } }
+            )) {
+                ForEach(Backdrop.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .disabled(model == nil)
+            Divider()
+            Button("Auto Balance") { model?.setLook(as: "Turn On Auto Balance") { $0.canvas.autoBalance = true } }
+                .disabled(model?.look.backdrop != .canvas || model?.look.canvas.autoBalance == true)
+            Button("Shuffle Background") { model?.shuffleBackground() }
+                .disabled(model?.look.backdrop == Backdrop.none || model?.look.background.gradientName == nil)
+            Button("Center Window") { model?.centerDesktopWindow() }
+                .disabled(model?.look.backdrop != .desktop)
+            Button("Fill Desktop") { model?.fillDesktop() }
+                .disabled(model?.look.backdrop != .desktop)
+            Divider()
+            Button("Edit Looks…") { openSettings() }
+        }
+
+        CommandMenu("Bookmarks") {
+            ForEach(safari.folders, id: \.name) { folder in
+                Menu(folder.name) {
+                    ForEach(folder.bookmarks) { bookmark in
+                        Button(bookmark.title) { open(bookmark.url) }
+                    }
+                }
+            }
+            if !safari.bookmarks.isEmpty { Divider() }
+            Button("Read Safari Bookmarks") { readSafariBookmarks() }
+            Button("Import Bookmarks File…") { Task { await importBookmarks() } }
+        }
+    }
+
+    private func readSafariBookmarks() {
+        do {
+            try safari.reloadSafariBookmarks()
+            model?.status = StatusMessage("Read \(safari.bookmarks.count) Bookmarks")
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Couldn’t Read Safari Bookmarks"
+            alert.informativeText = error.localizedDescription
+            alert.addButton(withTitle: "Open Privacy Settings")
+            alert.addButton(withTitle: "Cancel")
+            if alert.runModal() == .alertFirstButtonReturn,
+               let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+
+    private func importBookmarks() async {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.html]
+        panel.message = "Choose a Bookmarks file exported from Safari with File › Export › Bookmarks."
+        guard await panel.present(in: NSApp.keyWindow) == .OK, let url = panel.url else { return }
+        do {
+            try safari.importBookmarks(from: url)
+            model?.status = StatusMessage("Imported \(safari.bookmarks.count) Bookmarks")
+        } catch {
+            model?.alert = AlertContent(title: "Couldn’t Import Bookmarks", message: error.localizedDescription)
+        }
+    }
+
+    private var textHasFocus: Bool {
+        NSApp.keyWindow?.firstResponder is NSText
+    }
+
+    private func open(_ url: URL) {
+        if let model { model.load(url) } else { PendingOpen.shared.urls.append(url); openWindow(id: "shoot") }
+    }
+
+    private func openFile() async {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.html, .webArchive, .internetLocation]
+        guard await panel.present(in: NSApp.keyWindow) == .OK, let url = panel.url else { return }
+        open(CanvasView.resolved(url))
+    }
+
+    private func openSafariFrontPage() async {
+        do {
+            guard let url = try await safari.frontPageURL() else {
+                model?.alert = AlertContent(title: "Couldn’t Open Safari’s Page", message: "Safari has no window open.")
+                return
+            }
+            open(url)
+        } catch {
+            model?.alert = AlertContent(title: "Couldn’t Open Safari’s Page", message: error.localizedDescription)
+        }
+    }
+
+    private func copyStyle() {
+        guard let model else { return }
+        StylePasteboard.look = model.look
+        model.status = StatusMessage("Copied Style")
+    }
+
+    private func pasteStyle() {
+        guard let model, var look = StylePasteboard.look else { return }
+        // A style carries the frame, not this window's desktop window placement.
+        look.desktop.windowSize = model.look.desktop.windowSize
+        look.desktop.centerX = model.look.desktop.centerX
+        look.desktop.centerY = model.look.desktop.centerY
+        model.setLook(as: "Paste Style") { $0 = look }
+    }
+
+    private func clearWebsiteData() async {
+        let alert = NSAlert()
+        alert.messageText = "Clear website data?"
+        alert.informativeText = "Cookies, sign-ins and caches for every site in Glamshot are removed. Undo can’t restore them."
+        alert.addButton(withTitle: "Clear Website Data")
+        alert.addButton(withTitle: "Cancel")
+        guard let window = NSApp.keyWindow else { return }
+        guard await alert.beginSheetModal(for: window) == .alertFirstButtonReturn else { return }
+        let store = WKWebsiteDataStore.default()
+        await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+        model?.status = StatusMessage("Cleared Website Data")
+    }
+}
+
+/// The style Copy Style put away, for Paste Style in any window.
+@MainActor
+enum StylePasteboard {
+    static var look: Look?
+}
+
+/// Pages asked for when no window was open; the next window opens them.
+@MainActor
+final class PendingOpen {
+    static let shared = PendingOpen()
+    var urls: [URL] = []
+}

@@ -185,6 +185,8 @@ public struct DesktopOptions: Codable, Hashable, Sendable {
     public var centerY: CGFloat = 0.5
     public var appName: String = "Safari"
     public var clock: String = "Tue Oct 29  9:41 AM"
+    /// Menu bar text: dark on a light desktop, light on a dark one.
+    public var menuBar: MenuBarAppearance = .automatic
 
     public init() {}
 
@@ -195,6 +197,19 @@ public struct DesktopOptions: Codable, Hashable, Sendable {
 
     public var display: SizePreset {
         SizePreset.builtIns.first { $0.id == displayID } ?? .macBookPro14
+    }
+}
+
+public enum MenuBarAppearance: String, Codable, CaseIterable, Sendable {
+    /// Chosen from the background's brightness under the menu bar.
+    case automatic, light, dark
+
+    public var title: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
     }
 }
 
