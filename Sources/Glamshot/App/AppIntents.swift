@@ -114,7 +114,7 @@ struct TakeGlamshotIntent: AppIntent {
         options.apply(preset)
         options.fullPage = fullPage
 
-        let shoot = try await HeadlessShoot(url: url, viewport: options.viewport)
+        let shoot = try await HeadlessShoot(url: url, viewport: FrameLayout.pageSize(output: options.outputSize, look: chosenLook))
         defer { shoot.close() }
         let shot = try await shoot.model.render(look: chosenLook, capture: options)
 

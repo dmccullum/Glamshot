@@ -151,7 +151,7 @@ struct GlamshotCommands: Commands {
                     Button(preset.name) { model?.choose(preset) }
                 }
             }
-            .disabled(model == nil || model?.look.backdrop == .desktop)
+            .disabled(model == nil)
             Picker("Page Appearance", selection: Binding(
                 get: { model?.capture.appearance ?? .light },
                 set: { value in model?.setCapture(as: "Change Page Appearance") { $0.appearance = value } }
@@ -200,10 +200,10 @@ struct GlamshotCommands: Commands {
             }
             .disabled(model == nil)
             Divider()
-            Toggle("Auto Balance", isOn: Binding(
-                get: { model?.look.canvas.autoBalance ?? false },
+            Toggle("Auto Padding", isOn: Binding(
+                get: { model?.look.canvas.autoPadding ?? false },
                 set: { value in
-                    model?.setLook(as: value ? "Turn On Auto Balance" : "Turn Off Auto Balance") { $0.canvas.autoBalance = value }
+                    model?.setLook(as: value ? "Turn On Auto Padding" : "Turn Off Auto Padding") { $0.canvas.autoPadding = value }
                 }
             ))
             .disabled(model?.look.backdrop != .canvas)
@@ -310,7 +310,8 @@ struct GlamshotCommands: Commands {
     private func pasteStyle() {
         guard let model, var look = StylePasteboard.look else { return }
         // A style carries the frame, not this window's desktop window placement.
-        look.desktop.windowSize = model.look.desktop.windowSize
+        look.desktop.widthFraction = model.look.desktop.widthFraction
+        look.desktop.heightFraction = model.look.desktop.heightFraction
         look.desktop.centerX = model.look.desktop.centerX
         look.desktop.centerY = model.look.desktop.centerY
         model.setLook(as: "Paste Style") { $0 = look }

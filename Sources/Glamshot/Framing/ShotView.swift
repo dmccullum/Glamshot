@@ -132,8 +132,8 @@ struct RenderedShot {
 enum ShotRenderer {
     /// Frames a photographed page at the photograph's scale.
     @MainActor
-    static func render(page: PageCapture, look: Look, context: FrameContext) async throws -> CGImage {
-        let layout = FrameLayout.make(page: page.pointSize, look: look)
+    static func render(page: PageCapture, look: Look, output: CGSize, fullPage: Bool, context: FrameContext) async throws -> CGImage {
+        let layout = FrameLayout.make(output: output, look: look, pageHeight: fullPage ? page.pointSize.height : nil)
         var background: CGImage?
         if look.backdrop != .none, case .gradient(let name, let seed) = look.background {
             let scale = CGFloat(page.scale)

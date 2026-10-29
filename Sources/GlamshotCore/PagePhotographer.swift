@@ -43,7 +43,8 @@ public struct PageCapture: @unchecked Sendable {
 /// Photographs the page in a web view: one screen, or the whole scrolling length.
 ///
 /// The web view is the one the person is looking at and clicking in, so sign-ins and dismissed
-/// banners carry into the photograph. Its frame must be the viewport, and nothing else may resize
+/// banners carry into the photograph. Its frame is the page's room in points (its `pageZoom` sets
+/// how wide the page lays out in that room), and nothing else may resize
 /// it while a full-page capture runs, because the capture grows it to the page's height.
 @MainActor
 public final class PagePhotographer {
@@ -103,10 +104,12 @@ public final class PagePhotographer {
 
         // Grow the view to the page so everything lays out and lazy images load, then put back
         // anything sized from the viewport height (a 100vh hero) and measure again.
-        var pageHeight = try await number("return document.scrollingElement.scrollHeight")
+        // Page heights come back in CSS pixels; a zoomed page draws them smaller in the view.
+        let zoom = webView.pageZoom
+        var pageHeight = try await number("return document.scrollingElement.scrollHeight") * zoom
         webView.setFrameSize(CGSize(width: viewport.width, height: min(max(pageHeight, viewport.height), maximumHeight)))
         try await run(Self.nextFrameScript)
-        pageHeight = try await number(Self.pinViewportHeightsScript)
+        pageHeight = try await number(Self.pinViewportHeightsScript) * zoom
 
         let wasCut = pageHeight > maximumHeight
         let height = min(max(pageHeight, viewport.height), maximumHeight).rounded()

@@ -71,19 +71,9 @@ struct DesktopWindowHandles: View {
             }
     }
 
-    /// Writes a new window rect back as a size and a center fraction of the area below the menu bar.
+    /// Writes a new window rect back as shares of the desktop below the menu bar.
     private func apply(_ rect: CGRect, startLook: Look) {
-        let display = model.look.desktop.display.size
-        let area = CGRect(x: 0, y: ChromeMetrics.menuBarHeight, width: display.width, height: display.height - ChromeMetrics.menuBarHeight)
-        var look = model.look
-        let size = CGSize(
-            width: min(max(rect.width, FrameLayout.minimumWindowSize.width), area.width).rounded(),
-            height: min(max(rect.height, FrameLayout.minimumWindowSize.height), area.height).rounded()
-        )
-        look.desktop.windowSize = size
-        look.desktop.centerX = min(max((rect.midX - area.minX) / area.width, 0), 1)
-        look.desktop.centerY = min(max((rect.midY - area.minY) / area.height, 0), 1)
-        model.look = look
+        model.look.desktop = FrameLayout.desktopOptions(model.look.desktop, with: rect, output: model.capture.outputSize)
     }
 
     enum Handle: CaseIterable {

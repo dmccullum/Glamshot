@@ -68,14 +68,15 @@ enum SelfTest {
         hero.close()
 
         // The Shortcuts action's path: an off-screen shoot framed in a canvas Look.
-        let look = Look.builtIns.first { $0.id == "canvas-16x9" }!
+        let look = Look.builtIns.first { $0.id == "safari-canvas" }!
         let options = CaptureOptions(width: 800, height: 600, scale: 2, delay: 0)
         if let shot = await attempt("headless shoot", {
-            let shoot = try await HeadlessShoot(url: fixtures.appending(path: "bands.html"), viewport: options.viewport)
+            let shoot = try await HeadlessShoot(url: fixtures.appending(path: "bands.html"),
+                                                viewport: FrameLayout.pageSize(output: options.outputSize, look: look))
             defer { shoot.close() }
             return try await shoot.model.render(look: look, capture: options)
         }) {
-            let layout = FrameLayout.make(page: options.viewport, look: look)
+            let layout = FrameLayout.make(output: options.outputSize, look: look)
             check("headless shoot size", shot.image.width == Int(layout.canvasSize.width) * 2 && shot.image.height == Int(layout.canvasSize.height) * 2,
                   "\(shot.image.width) × \(shot.image.height)")
             let pageCenter = CGPoint(x: layout.pageRect.minX + 10, y: layout.pageRect.minY + 100)

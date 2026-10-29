@@ -5,7 +5,7 @@ import Foundation
 /// scale it renders at.
 public struct SizePreset: Codable, Hashable, Identifiable, Sendable {
     public enum Group: String, Codable, CaseIterable, Sendable {
-        case mac, display, tablet, phone, custom
+        case mac, display, tablet, phone, social, custom
 
         public var title: String {
             switch self {
@@ -13,6 +13,7 @@ public struct SizePreset: Codable, Hashable, Identifiable, Sendable {
             case .display: "Displays"
             case .tablet: "iPad"
             case .phone: "iPhone"
+            case .social: "Social"
             case .custom: "Custom"
             }
         }
@@ -67,7 +68,11 @@ extension SizePreset {
         SizePreset(id: "iphone-17-pro", name: "iPhone 17 Pro", group: .phone, width: 402, height: 874, scale: 3),
         SizePreset(id: "iphone-17-pro-max", name: "iPhone 17 Pro Max", group: .phone, width: 440, height: 956, scale: 3),
         SizePreset(id: "iphone-air", name: "iPhone Air", group: .phone, width: 420, height: 912, scale: 3),
-        SizePreset(id: "iphone-17e", name: "iPhone 17e", group: .phone, width: 390, height: 844, scale: 3)
+        SizePreset(id: "iphone-17e", name: "iPhone 17e", group: .phone, width: 390, height: 844, scale: 3),
+        SizePreset(id: "social-square", name: "Square", group: .social, width: 1080, height: 1080, scale: 1),
+        SizePreset(id: "social-portrait", name: "Portrait 4:5", group: .social, width: 1080, height: 1350, scale: 1),
+        SizePreset(id: "social-story", name: "Story 9:16", group: .social, width: 1080, height: 1920, scale: 1),
+        SizePreset(id: "social-landscape", name: "Landscape 16:9", group: .social, width: 1920, height: 1080, scale: 1)
     ]
 
     public static let macBookPro14 = builtIns[2]

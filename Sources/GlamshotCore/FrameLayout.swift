@@ -1,11 +1,13 @@
 import CoreGraphics
 
 /// Where everything goes in a finished shot, in points with the origin at the top left.
+///
+/// The output size comes first: the window and backdrop take their room from it, and the page
+/// gets what's left. A full page keeps the output's width and grows its height to fit the page.
 public struct FrameLayout: Equatable, Sendable {
     /// The whole image.
     public var canvasSize: CGSize
-    /// The window's outer edge, or the page's when there's no window. It can run past the canvas
-    /// when a tall page bleeds off the bottom.
+    /// The window's outer edge, or the page's when there's no window.
     public var windowRect: CGRect
     /// Where the page image goes, below the chrome.
     public var pageRect: CGRect
@@ -13,94 +15,95 @@ public struct FrameLayout: Equatable, Sendable {
     /// The menu bar's height on a desktop, otherwise 0.
     public var menuBarHeight: CGFloat
 
-    /// Lays out a page of `page` points in `look`. On a desktop the window's size comes from the
-    /// look, and the page should have been photographed at `Self.desktopViewport(for:)`.
-    public static func make(page: CGSize, look: Look) -> FrameLayout {
+    /// Lays out `look` in an image of `output` points. Pass `pageHeight` (points) for a full page.
+    public static func make(output: CGSize, look: Look, pageHeight: CGFloat? = nil) -> FrameLayout {
         let chrome = look.window == .safari ? ChromeMetrics.chromeHeight(showsTabBar: look.safari.showsTabBar) : 0
-        let window = CGSize(width: page.width, height: page.height + chrome)
 
-        switch look.backdrop {
-        case .none:
-            let margin = look.shadow > 0 ? (ChromeMetrics.shadowMargin * min(look.shadow, 1)).rounded() : 0
-            let rect = CGRect(origin: CGPoint(x: margin, y: margin), size: window)
-            return FrameLayout(
-                canvasSize: CGSize(width: window.width + margin * 2, height: window.height + margin * 2),
-                windowRect: rect, pageRect: pageRect(in: rect, chrome: chrome),
-                chromeHeight: chrome, menuBarHeight: 0
-            )
-
-        case .canvas:
-            return canvasLayout(window: window, chrome: chrome, options: look.canvas)
-
-        case .desktop:
-            let display = look.desktop.display.size
+        if look.backdrop == .desktop {
             let menuBar = ChromeMetrics.menuBarHeight
-            let area = CGRect(x: 0, y: menuBar, width: display.width, height: display.height - menuBar)
-            let size = clampedWindowSize(look.desktop.windowSize, chrome: chrome, in: area.size)
-            var origin = CGPoint(
-                x: area.minX + area.width * look.desktop.centerX - size.width / 2,
-                y: area.minY + area.height * look.desktop.centerY - size.height / 2
-            )
-            origin.x = min(max(origin.x, area.minX), area.maxX - size.width).rounded()
-            origin.y = min(max(origin.y, area.minY), area.maxY - size.height).rounded()
-            let rect = CGRect(origin: origin, size: size)
+            let area = CGRect(x: 0, y: menuBar, width: output.width, height: max(output.height - menuBar, 1))
+            let rect = desktopWindowRect(look.desktop, in: area, chrome: chrome)
             return FrameLayout(
-                canvasSize: display, windowRect: rect, pageRect: pageRect(in: rect, chrome: chrome),
+                canvasSize: output, windowRect: rect, pageRect: pageRect(in: rect, chrome: chrome),
                 chromeHeight: chrome, menuBarHeight: menuBar
             )
         }
+
+        let inset = insets(for: look, output: output, chrome: chrome)
+        var window = CGRect(
+            x: inset, y: inset,
+            width: max(output.width - inset * 2, minimumPageSize.width),
+            height: max(output.height - inset * 2, chrome + minimumPageSize.height)
+        )
+        var canvas = output
+        if let pageHeight {
+            window.size.height = chrome + max(pageHeight, 1)
+            canvas.height = window.height + inset * 2
+        }
+        return FrameLayout(
+            canvasSize: canvas, windowRect: window, pageRect: pageRect(in: window, chrome: chrome),
+            chromeHeight: chrome, menuBarHeight: 0
+        )
     }
 
-    /// The viewport to photograph for a desktop look: its window minus the chrome.
-    public static func desktopViewport(for look: Look) -> CGSize {
-        let layout = make(page: .zero, look: look)
-        return layout.pageRect.size
+    /// The room the page gets, in points: the web view's size.
+    public static func pageSize(output: CGSize, look: Look) -> CGSize {
+        make(output: output, look: look).pageRect.size
     }
 
+    /// The smallest page Glamshot lays out, in points.
+    public static let minimumPageSize = CGSize(width: 200, height: 120)
     /// The smallest window a desktop allows, in points.
     public static let minimumWindowSize = CGSize(width: 360, height: 240)
 
-    static func clampedWindowSize(_ size: CGSize, chrome: CGFloat, in area: CGSize) -> CGSize {
-        CGSize(
-            width: min(max(size.width, minimumWindowSize.width), area.width).rounded(),
-            height: min(max(size.height, max(minimumWindowSize.height, chrome + 1)), area.height).rounded()
-        )
+    /// Padding Auto Padding uses: 7% of the output's shorter side, between 24 and 160 points.
+    public static func automaticPadding(for output: CGSize) -> CGFloat {
+        min(max((min(output.width, output.height) * 0.07).rounded(), 24), 160)
     }
 
-    /// Padding Auto Balance uses: 8% of the window's width, between 32 and 200 points.
-    public static func balancedPadding(for window: CGSize) -> CGFloat {
-        min(max((window.width * 0.08).rounded(), 32), 200)
-    }
-
-    private static func canvasLayout(window: CGSize, chrome: CGFloat, options: CanvasOptions) -> FrameLayout {
-        let padding = options.autoBalance ? balancedPadding(for: window) : max(options.padding, 0)
-        var alignment = options.autoBalance ? CanvasAlignment.center.unit : options.alignment.unit
-        let base = CGSize(width: window.width + padding * 2, height: window.height + padding * 2)
-        var canvas = base
-
-        if let ratio = options.aspect.value {
-            if base.width / base.height > ratio {
-                canvas.height = (base.width / ratio).rounded()
-            } else if options.autoBalance {
-                // Too tall for the ratio: keep the width and let the page run off the bottom,
-                // the way a long page is usually shown in a mockup.
-                canvas.height = (base.width / ratio).rounded()
-                alignment = CanvasAlignment.top.unit
-            } else {
-                canvas.width = (base.height * ratio).rounded()
-            }
+    /// Room around the window on every side: the canvas padding, or on no backdrop, space for the
+    /// shadow so a transparent image doesn't cut it off.
+    static func insets(for look: Look, output: CGSize, chrome: CGFloat) -> CGFloat {
+        let wanted: CGFloat
+        switch look.backdrop {
+        case .none:
+            wanted = look.shadow > 0 ? (ChromeMetrics.shadowMargin * min(look.shadow, 1)).rounded() : 0
+        case .canvas:
+            wanted = look.canvas.autoPadding ? automaticPadding(for: output) : max(look.canvas.padding, 0)
+        case .desktop:
+            wanted = 0
         }
+        // Never so much that the page disappears.
+        let limit = max(min((output.width - minimumPageSize.width) / 2, (output.height - chrome - minimumPageSize.height) / 2), 0)
+        return min(wanted, limit).rounded()
+    }
 
-        let free = CGSize(width: canvas.width - window.width - padding * 2, height: canvas.height - window.height - padding * 2)
-        let origin = CGPoint(
-            x: (padding + max(free.width, 0) * alignment.x).rounded(),
-            y: (padding + max(free.height, 0) * alignment.y).rounded()
+    static func desktopWindowRect(_ desktop: DesktopOptions, in area: CGRect, chrome: CGFloat) -> CGRect {
+        let size = CGSize(
+            width: min(max(area.width * desktop.widthFraction, minimumWindowSize.width), area.width).rounded(),
+            height: min(max(area.height * desktop.heightFraction, max(minimumWindowSize.height, chrome + 1)), area.height).rounded()
         )
-        let rect = CGRect(origin: origin, size: window)
-        return FrameLayout(
-            canvasSize: canvas, windowRect: rect, pageRect: pageRect(in: rect, chrome: chrome),
-            chromeHeight: chrome, menuBarHeight: 0
+        var origin = CGPoint(
+            x: area.minX + area.width * desktop.centerX - size.width / 2,
+            y: area.minY + area.height * desktop.centerY - size.height / 2
         )
+        origin.x = min(max(origin.x, area.minX), area.maxX - size.width).rounded()
+        origin.y = min(max(origin.y, area.minY), area.maxY - size.height).rounded()
+        return CGRect(origin: origin, size: size)
+    }
+
+    /// Writes a window rect, in points on a desktop of `output`, back as fractions of the area
+    /// below the menu bar.
+    public static func desktopOptions(_ desktop: DesktopOptions, with rect: CGRect, output: CGSize) -> DesktopOptions {
+        let area = CGRect(x: 0, y: ChromeMetrics.menuBarHeight, width: output.width, height: output.height - ChromeMetrics.menuBarHeight)
+        var options = desktop
+        let width = min(max(rect.width, minimumWindowSize.width), area.width)
+        let height = min(max(rect.height, minimumWindowSize.height), area.height)
+        options.widthFraction = width / area.width
+        options.heightFraction = height / area.height
+        options.centerX = min(max((rect.midX - area.minX) / area.width, 0), 1)
+        options.centerY = min(max((rect.midY - area.minY) / area.height, 0), 1)
+        return options
     }
 
     private static func pageRect(in window: CGRect, chrome: CGFloat) -> CGRect {

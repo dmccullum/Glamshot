@@ -69,7 +69,7 @@ final class ShootModel {
         configuration.userContentController.addUserScript(WKUserScript(
             source: Self.hidingScriptSource, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient
         ))
-        webView = WKWebView(frame: CGRect(origin: .zero, size: CaptureOptions().viewport), configuration: configuration)
+        webView = WKWebView(frame: CGRect(origin: .zero, size: CaptureOptions().outputSize), configuration: configuration)
         webView.allowsBackForwardNavigationGestures = true
         webView.allowsMagnification = false
         webView.isInspectable = true
@@ -180,7 +180,7 @@ final class ShootModel {
 
     // MARK: Capture settings
 
-    /// The preset matching the viewport, if any.
+    /// The preset matching the output size, if any.
     var currentPreset: SizePreset? {
         Defaults.shared.allPresets.first { capture.matches($0) }
     }
@@ -254,8 +254,9 @@ final class ShootModel {
             webView.appearance = NSAppearance(named: capture.appearance == .dark ? .darkAqua : .aqua)
         }
         if capture.hiddenSelectors != old.hiddenSelectors { applyHiddenSelectors() }
-        if capture.viewport != old.viewport { applyViewport() }
-        if capture.fullPage != old.fullPage || capture.viewport != old.viewport || capture.scale != old.scale {
+        if capture.outputSize != old.outputSize || capture.zoom != old.zoom { applyViewport() }
+        if capture.fullPage != old.fullPage || capture.outputSize != old.outputSize || capture.zoom != old.zoom
+            || capture.scale != old.scale {
             fullPagePreview = nil
             if capture.fullPage { refreshFullPagePreview() }
         }
@@ -263,22 +264,31 @@ final class ShootModel {
     }
 
     private func lookDidChange(from old: Look) {
-        if look.backdrop == .desktop, look.desktop != old.desktop || old.backdrop != .desktop
-            || look.window != old.window || look.safari.showsTabBar != old.safari.showsTabBar {
-            // On a desktop, the window's size is the viewport.
-            let viewport = FrameLayout.desktopViewport(for: look)
-            if viewport != capture.viewport {
-                capture.width = Int(viewport.width)
-                capture.height = Int(viewport.height)
-            }
-        }
         if look.backdrop == .desktop, capture.fullPage { capture.fullPage = false }
+        if pageSize(for: look) != pageSize(for: old) {
+            applyViewport()
+            fullPagePreview = nil
+            if capture.fullPage { refreshFullPagePreview() }
+        }
         if remembersSettings { Defaults.shared.look = look }
     }
 
-    /// Sizes the web view to the viewport. The host view scales it to fit the window.
+    /// The page's room in points: the output minus the window chrome and the backdrop.
+    var pageSize: CGSize { pageSize(for: look) }
+
+    func pageSize(for look: Look, output: CGSize? = nil) -> CGSize {
+        FrameLayout.pageSize(output: output ?? capture.outputSize, look: look)
+    }
+
+    /// The page's layout size in CSS pixels: its room divided by the zoom.
+    var layoutSize: CGSize {
+        CGSize(width: (pageSize.width / capture.zoom).rounded(), height: (pageSize.height / capture.zoom).rounded())
+    }
+
+    /// Sizes the web view to the page's room and zooms it. The host view scales it to fit the window.
     func applyViewport() {
-        webView.setFrameSize(capture.viewport)
+        webView.setFrameSize(pageSize)
+        webView.pageZoom = capture.zoom
     }
 
     private func applyHiddenSelectors() {
@@ -308,24 +318,22 @@ final class ShootModel {
 
     // MARK: Desktop window
 
-    func setDesktopWindow(size: CGSize? = nil, center: CGPoint? = nil, as name: String) {
-        setLook(as: name) { look in
-            if let size { look.desktop.windowSize = size }
-            if let center {
-                look.desktop.centerX = center.x
-                look.desktop.centerY = center.y
-            }
+    func centerDesktopWindow() {
+        setLook(as: "Center Window") {
+            $0.desktop.centerX = 0.5
+            $0.desktop.centerY = 0.5
         }
     }
 
-    func centerDesktopWindow() {
-        setDesktopWindow(center: CGPoint(x: 0.5, y: 0.5), as: "Center Window")
-    }
-
+    /// Fills the desktop below the menu bar, leaving a 24 pt margin like a zoomed window.
     func fillDesktop() {
-        let display = look.desktop.display.size
-        let size = CGSize(width: display.width - 48, height: display.height - ChromeMetrics.menuBarHeight - 48)
-        setDesktopWindow(size: size, center: CGPoint(x: 0.5, y: 0.5), as: "Fill Desktop")
+        let area = CGSize(width: capture.outputSize.width, height: capture.outputSize.height - ChromeMetrics.menuBarHeight)
+        setLook(as: "Fill Desktop") {
+            $0.desktop.widthFraction = max((area.width - 48) / area.width, 0.5)
+            $0.desktop.heightFraction = max((area.height - 48) / area.height, 0.5)
+            $0.desktop.centerX = 0.5
+            $0.desktop.centerY = 0.5
+        }
     }
 
     // MARK: Full-page preview
@@ -346,18 +354,22 @@ final class ShootModel {
     func render(look: Look? = nil, capture: CaptureOptions? = nil) async throws -> RenderedShot {
         let look = look ?? self.look
         var options = capture ?? self.capture
-        if look.backdrop == .desktop {
-            let viewport = FrameLayout.desktopViewport(for: look)
-            options.width = Int(viewport.width)
-            options.height = Int(viewport.height)
-            options.fullPage = false
-        }
+        if look.backdrop == .desktop { options.fullPage = false }
         options.delay = Defaults.shared.waitAfterLoading
-        let original = webView.frame.size
-        if original != options.viewport { webView.setFrameSize(options.viewport) }
-        defer { if original != options.viewport { webView.setFrameSize(original) } }
+
+        // Lay the page out in the room this look leaves in this output, then put the view back.
+        let room = pageSize(for: look, output: options.outputSize)
+        let original = (size: webView.frame.size, zoom: webView.pageZoom)
+        webView.setFrameSize(room)
+        webView.pageZoom = options.zoom
+        defer {
+            webView.setFrameSize(original.size)
+            webView.pageZoom = original.zoom
+        }
         let page = try await photographer.capture(options)
-        let image = try await ShotRenderer.render(page: page, look: look, context: frameContext)
+        let image = try await ShotRenderer.render(
+            page: page, look: look, output: options.outputSize, fullPage: options.fullPage, context: frameContext
+        )
         return RenderedShot(image: image, scale: options.scale, wasCut: page.wasCut)
     }
 
@@ -439,8 +451,7 @@ final class ShootModel {
                 activity = Activity(title: "Exporting \(index + 1) of \(presets.count)", progress: Double(index) / Double(presets.count))
                 var options = capture
                 options.apply(preset)
-                var look = self.look
-                if look.backdrop == .desktop { look.backdrop = .canvas }
+                let look = self.look
                 do {
                     let shot = try await render(look: look, capture: options)
                     let url = folder.appending(path: fileName(for: look, sizeName: preset.name, capture: options) + "." + format.fileExtension)

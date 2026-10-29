@@ -50,10 +50,9 @@ public struct Look: Codable, Hashable, Identifiable, Sendable {
     public static let builtIns: [Look] = [
         Look(id: "bare", name: "Bare Page", window: .none, backdrop: .none, shadow: 0),
         Look(id: "safari", name: "Safari, Transparent", window: .safari, backdrop: .none),
-        Look(id: "canvas-4x5", name: "Safari on Canvas 4:5", window: .safari, backdrop: .canvas,
-             canvas: CanvasOptions(aspect: .r4x5, autoBalance: true)),
-        Look(id: "canvas-16x9", name: "Safari on Canvas 16:9", window: .safari, backdrop: .canvas,
-             canvas: CanvasOptions(aspect: .r16x9, autoBalance: true), background: .gradient(name: "Tidal", seed: 0)),
+        Look(id: "safari-canvas", name: "Safari on Canvas", window: .safari, backdrop: .canvas),
+        Look(id: "page-canvas", name: "Page on Canvas", window: .none, backdrop: .canvas,
+             background: .gradient(name: "Tidal", seed: 0)),
         Look(id: "desktop", name: "Desktop", window: .safari, backdrop: .desktop, background: .gradient(name: "Bloom", seed: 0))
     ]
 }
@@ -112,74 +111,28 @@ public struct SafariOptions: Codable, Hashable, Sendable {
     }
 }
 
-public enum AspectRatio: String, Codable, CaseIterable, Sendable {
-    case auto, r16x9, r3x2, r4x3, r1x1, r4x5, r9x16
-
-    public var title: String {
-        switch self {
-        case .auto: "Auto"
-        case .r16x9: "16:9"
-        case .r3x2: "3:2"
-        case .r4x3: "4:3"
-        case .r1x1: "1:1"
-        case .r4x5: "4:5"
-        case .r9x16: "9:16"
-        }
-    }
-
-    /// Width divided by height, or nil for Auto.
-    public var value: CGFloat? {
-        switch self {
-        case .auto: nil
-        case .r16x9: 16.0 / 9
-        case .r3x2: 3.0 / 2
-        case .r4x3: 4.0 / 3
-        case .r1x1: 1
-        case .r4x5: 4.0 / 5
-        case .r9x16: 9.0 / 16
-        }
-    }
-}
-
-/// Where the window sits when the canvas has room to spare: a 3 × 3 grid.
-public enum CanvasAlignment: String, Codable, CaseIterable, Sendable {
-    case topLeading, top, topTrailing, leading, center, trailing, bottomLeading, bottom, bottomTrailing
-
-    /// 0, 0.5 or 1 across and down.
-    public var unit: CGPoint {
-        let index = Self.allCases.firstIndex(of: self)!
-        return CGPoint(x: CGFloat(index % 3) / 2, y: CGFloat(index / 3) / 2)
-    }
-}
-
 /// The page or window on a background, with room around it.
 public struct CanvasOptions: Codable, Hashable, Sendable {
-    /// Space around the window in points, before the aspect ratio adds more.
+    /// Picks the padding from the output size.
+    public var autoPadding: Bool = true
+    /// Space around the window in points when `autoPadding` is off.
     public var padding: CGFloat = 96
-    public var aspect: AspectRatio = .auto
-    public var alignment: CanvasAlignment = .center
-    /// Picks padding and alignment for the window's shape: a tall page bleeds off the bottom.
-    public var autoBalance: Bool = true
     /// Corner radius for a page with no window, in points.
     public var cornerRadius: CGFloat = 14
 
-    public init(padding: CGFloat = 96, aspect: AspectRatio = .auto, alignment: CanvasAlignment = .center,
-                autoBalance: Bool = true, cornerRadius: CGFloat = 14) {
+    public init(autoPadding: Bool = true, padding: CGFloat = 96, cornerRadius: CGFloat = 14) {
+        self.autoPadding = autoPadding
         self.padding = padding
-        self.aspect = aspect
-        self.alignment = alignment
-        self.autoBalance = autoBalance
         self.cornerRadius = cornerRadius
     }
 }
 
-/// A Mac desktop with a menu bar and the window on it.
+/// A Mac desktop with a menu bar and the window on it. The output size is the desktop's size; the
+/// window is kept as a share of it, so a Look fits any output.
 public struct DesktopOptions: Codable, Hashable, Sendable {
-    /// A Mac `SizePreset` id; its points are the desktop's size.
-    public var displayID: String = SizePreset.macBookPro14.id
-    /// The window's outer size in points, including the toolbar.
-    public var windowWidth: CGFloat = 1210
-    public var windowHeight: CGFloat = 760
+    /// The window's outer size as a fraction of the area below the menu bar.
+    public var widthFraction: CGFloat = 0.8
+    public var heightFraction: CGFloat = 0.8
     /// The window's center as a fraction of the area below the menu bar.
     public var centerX: CGFloat = 0.5
     public var centerY: CGFloat = 0.5
@@ -189,15 +142,6 @@ public struct DesktopOptions: Codable, Hashable, Sendable {
     public var menuBar: MenuBarAppearance = .automatic
 
     public init() {}
-
-    public var windowSize: CGSize {
-        get { CGSize(width: windowWidth, height: windowHeight) }
-        set { windowWidth = newValue.width; windowHeight = newValue.height }
-    }
-
-    public var display: SizePreset {
-        SizePreset.builtIns.first { $0.id == displayID } ?? .macBookPro14
-    }
 }
 
 public enum MenuBarAppearance: String, Codable, CaseIterable, Sendable {

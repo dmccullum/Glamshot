@@ -10,14 +10,14 @@ struct CanvasView: View {
     @Bindable var model: ShootModel
     @State private var isDropTargeted = false
 
-    private var pageSize: CGSize {
-        if model.capture.fullPage, let preview = model.fullPagePreview { return preview.pointSize }
-        return model.capture.viewport
+    /// The full page's height in points, when one has been measured.
+    private var fullPageHeight: CGFloat? {
+        model.capture.fullPage ? model.fullPagePreview?.pointSize.height : nil
     }
 
     var body: some View {
         GeometryReader { proxy in
-            let layout = FrameLayout.make(page: pageSize, look: model.look)
+            let layout = FrameLayout.make(output: model.capture.outputSize, look: model.look, pageHeight: fullPageHeight)
             let available = CGSize(width: max(proxy.size.width - 48, 1), height: max(proxy.size.height - 48, 1))
             let fit = min(available.width / layout.canvasSize.width, available.height / layout.canvasSize.height, 1)
             let scale = model.zoom == .actual ? 1 : fit
@@ -64,9 +64,9 @@ struct CanvasView: View {
         let rect = layout.pageRect
         let radius = (model.look.window == .safari ? ChromeMetrics.cornerRadius
                       : model.look.backdrop == .none ? 0 : model.look.canvas.cornerRadius) * scale
-        return WebHost(webView: model.webView, viewport: model.capture.viewport, bottomCornerRadius: radius,
+        return WebHost(webView: model.webView, viewport: model.pageSize, bottomCornerRadius: radius,
                        topCornerRadius: model.look.window == .safari ? 0 : radius)
-            .frame(width: rect.width * scale, height: min(rect.height, model.capture.viewport.height) * scale)
+            .frame(width: rect.width * scale, height: min(rect.height, model.pageSize.height) * scale)
             .offset(x: rect.minX * scale, y: rect.minY * scale)
             .opacity(model.hasPage ? 1 : 0)
             .overlay {
@@ -146,8 +146,8 @@ struct EmptyPageView: View {
     }
 }
 
-/// Hosts the live web view. The web view keeps the viewport's size in points and this view
-/// scales it to fit, so the page lays out exactly as it will be photographed.
+/// Hosts the live web view. The web view keeps the page's size in points and this view scales it
+/// to fit, so the page lays out exactly as it will be photographed.
 struct WebHost: NSViewRepresentable {
     let webView: WKWebView
     let viewport: CGSize
