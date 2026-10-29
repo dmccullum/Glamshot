@@ -85,8 +85,80 @@
           ]
         },
         {
-          "name": "circle",
-          "image-name": "circle.svg"
+          "name": "highlight",
+          "image-name": "highlight.svg",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:1.00000,1.00000,1.00000,0.70000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:1.00000,1.00000,1.00000,0.60000"
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:1.00000,1.00000,1.00000,0.80000"
+              }
+            }
+          ]
+        },
+        {
+          "name": "glass",
+          "image-name": "glass.svg"
+        },
+        {
+          "name": "barrel",
+          "image-name": "barrel.svg",
+          "fill-specializations": [
+            {
+              "value": {
+                "linear-gradient": [
+                  "srgb:0.22745,0.25490,0.31373,1.00000",
+                  "srgb:0.07843,0.09020,0.11765,1.00000"
+                ],
+                "orientation": {
+                  "start": {
+                    "x": 0.5,
+                    "y": 0
+                  },
+                  "stop": {
+                    "x": 0.5,
+                    "y": 1
+                  }
+                }
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "linear-gradient": [
+                  "srgb:0.22745,0.25490,0.31373,1.00000",
+                  "srgb:0.05490,0.06275,0.08235,1.00000"
+                ],
+                "orientation": {
+                  "start": {
+                    "x": 0.5,
+                    "y": 0
+                  },
+                  "stop": {
+                    "x": 0.5,
+                    "y": 1
+                  }
+                }
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:0.22745,0.22745,0.22745,1.00000"
+              }
+            }
+          ]
         }
       ],
       "specular": true,
@@ -104,26 +176,15 @@
       "name": "Chrome",
       "layers": [
         {
-          "name": "bloom-dark",
-          "image-name": "bloom-dark.svg",
-          "glass": false,
+          "name": "rims",
+          "image-name": "rims.svg",
           "hidden-specializations": [
             {
+              "appearance": "dark",
               "value": true
             },
             {
-              "appearance": "dark",
-              "value": false
-            }
-          ]
-        },
-        {
-          "name": "bloom",
-          "image-name": "bloom.svg",
-          "glass": false,
-          "hidden-specializations": [
-            {
-              "appearance": "dark",
+              "appearance": "tinted",
               "value": true
             }
           ]
@@ -162,8 +223,8 @@
             {
               "value": {
                 "linear-gradient": [
-                  "srgb:1.00000,0.90196,0.50196,1.00000",
-                  "srgb:1.00000,0.98431,0.91765,1.00000"
+                  "srgb:1.00000,0.76863,0.00000,1.00000",
+                  "srgb:1.00000,0.90196,0.50196,1.00000"
                 ],
                 "orientation": {
                   "start": {
@@ -225,7 +286,7 @@
           "fill-specializations": [
             {
               "value": {
-                "solid": "srgb:0.82745,0.85882,0.90588,0.90000"
+                "solid": "srgb:1.00000,1.00000,1.00000,0.90000"
               }
             },
             {
@@ -248,7 +309,20 @@
           "fill-specializations": [
             {
               "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,0.94000"
+                "linear-gradient": [
+                  "srgb:0.81176,0.89412,1.00000,1.00000",
+                  "srgb:0.55294,0.74118,1.00000,1.00000"
+                ],
+                "orientation": {
+                  "start": {
+                    "x": 0.5,
+                    "y": 0
+                  },
+                  "stop": {
+                    "x": 0.5,
+                    "y": 1
+                  }
+                }
               }
             },
             {
@@ -281,31 +355,6 @@
     {
       "name": "Canvas",
       "layers": [
-        {
-          "name": "glow-dark",
-          "image-name": "glow-dark.svg",
-          "glass": false,
-          "hidden-specializations": [
-            {
-              "value": true
-            },
-            {
-              "appearance": "dark",
-              "value": false
-            }
-          ]
-        },
-        {
-          "name": "glow",
-          "image-name": "glow.svg",
-          "glass": false,
-          "hidden-specializations": [
-            {
-              "appearance": "dark",
-              "value": true
-            }
-          ]
-        },
         {
           "name": "canvas-dark",
           "image-name": "canvas-dark.svg",
