@@ -40,12 +40,17 @@ public enum ChromeMetrics {
         }
     }
 
-    // Safari on iPhone (iOS 26) and iPad (iPadOS 26), in points.
-    public static let iPhoneStatusBarHeight: CGFloat = 54
-    public static let iPhoneAddressHeight: CGFloat = 48
-    public static let iPhoneAddressInset: CGFloat = 14
-    /// From the bottom of the screen to the bottom of the address bar, above the home indicator.
-    public static let iPhoneAddressBottom: CGFloat = 30
+    // Safari on iPhone (iOS 27) and iPad (iPadOS 26), in points, measured from device screenshots.
+    public static let iPhoneStatusBarHeight: CGFloat = 62
+    /// The bottom strip Safari's floating bar covers: the page lays out above it and its content
+    /// runs on underneath.
+    public static let iPhoneBottomBarInset: CGFloat = 99
+    /// Back, Tabs and the address capsule are this tall.
+    public static let iPhoneAddressHeight: CGFloat = 49
+    public static let iPhoneAddressWidth: CGFloat = 222
+    public static let iPhoneAddressInset: CGFloat = 34
+    /// From the bottom of the screen to the bottom of the bar.
+    public static let iPhoneAddressBottom: CGFloat = 37
     public static let iPhoneScreenRadius: CGFloat = 52
     public static let iPadStatusBarHeight: CGFloat = 24
     public static let iPadToolbarHeight: CGFloat = 50

@@ -43,10 +43,11 @@ struct CanvasView: View {
                     }
                     if look.window == .safari, look.safari.device == .iPhone {
                         // Above the live page, as Safari's bar floats over it.
+                        // Drawn at the page's real size, then scaled with the window and the canvas.
                         PhoneAddressBar(options: look.safari, isDark: ShotView<EmptyView>.chromeIsDark(look: look, context: model.frameContext),
-                                        context: model.frameContext, width: layout.pageRect.width)
-                            .frame(width: layout.pageRect.width, height: layout.pageRect.height)
-                            .scaleEffect(scale, anchor: .topLeading)
+                                        context: model.frameContext, width: layout.pageSize.width)
+                            .frame(width: layout.pageSize.width, height: layout.pageSize.height)
+                            .scaleEffect(scale * layout.windowScale, anchor: .topLeading)
                             .frame(width: layout.pageRect.width * scale, height: layout.pageRect.height * scale, alignment: .topLeading)
                             .offset(x: layout.pageRect.minX * scale, y: layout.pageRect.minY * scale)
                     }
@@ -91,7 +92,17 @@ struct CanvasView: View {
 
     /// Where the address field sits in the window mockup, for clicking to edit it.
     private func addressRect(layout: FrameLayout, look: Look) -> CGRect? {
-        let window = layout.windowRect
+        // Worked out at the window's real size, then scaled into place.
+        guard let natural = naturalAddressRect(layout: layout, look: look) else { return nil }
+        let s = layout.windowScale
+        return CGRect(x: layout.windowRect.minX + natural.minX * s, y: layout.windowRect.minY + natural.minY * s,
+                      width: natural.width * s, height: natural.height * s)
+    }
+
+    /// The address field's rect in the window's own coordinates at its real size.
+    private func naturalAddressRect(layout: FrameLayout, look: Look) -> CGRect? {
+        let window = CGRect(origin: .zero, size: CGSize(width: layout.windowRect.width / layout.windowScale,
+                                                        height: layout.windowRect.height / layout.windowScale))
         switch look.safari.device {
         case .mac, .automatic:
             guard window.width >= 560 else { return nil }
@@ -102,7 +113,7 @@ struct CanvasView: View {
             let width = min(max(window.width * 0.45, 220), 560)
             return CGRect(x: window.midX - width / 2, y: window.minY + ChromeMetrics.iPadStatusBarHeight + 7, width: width, height: 36)
         case .iPhone:
-            let page = layout.pageRect
+            let page = CGRect(origin: CGPoint(x: 0, y: layout.chromeHeight), size: layout.pageSize)
             let height = look.safari.phoneBar == .full ? ChromeMetrics.iPhoneAddressHeight : 30
             let width = look.safari.phoneBar == .full ? page.width - 160 : 160
             return CGRect(x: page.midX - width / 2, y: page.maxY - height - (look.safari.phoneBar == .full ? 27 : 23), width: width, height: height)
@@ -111,10 +122,10 @@ struct CanvasView: View {
 
     private func livePage(layout: FrameLayout, look: Look, scale: CGFloat) -> some View {
         let rect = layout.pageRect
-        let radius = ShotView<EmptyView>.cornerRadius(look: look, layout: layout) * scale
+        let radius = ShotView<EmptyView>.cornerRadius(look: look, layout: layout) * layout.windowScale * scale
         return WebHost(webView: model.webView, viewport: model.pageSize, bottomCornerRadius: radius,
                        topCornerRadius: look.window == .safari ? 0 : radius)
-            .frame(width: rect.width * scale, height: min(rect.height, model.pageSize.height) * scale)
+            .frame(width: rect.width * scale, height: rect.height * scale)
             .offset(x: rect.minX * scale, y: rect.minY * scale)
             .opacity(model.hasPage ? 1 : 0)
             .overlay {

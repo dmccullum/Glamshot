@@ -20,11 +20,23 @@ struct FrameLayoutTests {
         #expect(layout.pageRect.size == CGSize(width: 1512, height: 982 - ChromeMetrics.toolbarHeight))
     }
 
-    @Test func shadowRoomComesFromTheOutput() {
+    @Test func aDeviceScreenKeepsItsSizeAndScalesIntoTheShadowRoom() {
         let layout = FrameLayout.make(output: output, look: Look(name: "Safari", window: .safari, backdrop: .none, shadow: 1))
         let margin = ChromeMetrics.shadowMargin
         #expect(layout.canvasSize == output)
-        #expect(layout.windowRect == CGRect(x: margin, y: margin, width: 1512 - margin * 2, height: 982 - margin * 2))
+        #expect(layout.pageSize == CGSize(width: 1512, height: 982 - 52))
+        #expect(abs(layout.windowScale - (982 - margin * 2) / 982) < 0.001)
+        #expect(layout.windowRect.minY == margin)
+        #expect(abs(layout.windowRect.midX - 756) <= 1)
+    }
+
+    @Test func anIPhoneOnACanvasLaysOutAtThePhonesWidth() {
+        let phone = CGSize(width: 402, height: 874)
+        let look = Look(name: "Canvas", window: .safari, backdrop: .canvas, safari: SafariOptions(device: .iPhone))
+        let layout = FrameLayout.make(output: phone, look: look)
+        #expect(layout.pageSize.width == 402)
+        #expect(layout.windowScale < 1)
+        #expect(layout.canvasSize == phone)
     }
 
     @Test func tabBarAddsItsHeight() {
@@ -46,7 +58,8 @@ struct FrameLayoutTests {
         var look = Look(name: "Canvas", window: .none, backdrop: .canvas)
         look.canvas.autoPadding = false
         look.canvas.padding = 10_000
-        let layout = FrameLayout.make(output: output, look: look)
+        let social = CGSize(width: 1080, height: 1350)
+        let layout = FrameLayout.make(output: social, look: look)
         #expect(layout.pageRect.width >= FrameLayout.minimumPageSize.width)
         #expect(layout.pageRect.height >= FrameLayout.minimumPageSize.height)
     }

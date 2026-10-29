@@ -113,16 +113,14 @@ struct IPadSafariChrome: View {
     }
 }
 
-/// Safari on iPhone's compact address bar as in iOS 27, floating over the bottom of the page above
-/// the home indicator: Back, the address, and Tabs (which replaced iOS 26's More button), or the
-/// small domain pill Safari shrinks it to after scrolling.
+/// Safari on iPhone's compact address bar as in iOS 27, floating in glass over the bottom of the
+/// page: Back, the address, and Tabs (which replaced iOS 26's More button), or the small domain pill
+/// Safari shrinks it to after scrolling. Screenshots leave out the home indicator, so it isn't drawn.
 struct PhoneAddressBar: View {
     let options: SafariOptions
     let isDark: Bool
     let context: FrameContext
     let width: CGFloat
-
-    private var palette: ChromePalette { isDark ? .dark : .light }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -131,49 +129,64 @@ struct PhoneAddressBar: View {
             case .full: full
             case .minimized: minimized
             }
-            Capsule()
-                .fill(isDark ? Color.white : Color.black)
-                .frame(width: 140, height: 5)
-                .padding(.top, options.phoneBar == .full ? 14 : 10)
-                .padding(.bottom, 8)
         }
+        .padding(.bottom, options.phoneBar == .full ? ChromeMetrics.iPhoneAddressBottom : 20)
         .frame(width: width)
-        .environment(\.colorScheme, isDark ? .dark : .light)
+        .environment(\.colorScheme, .dark)
         .allowsHitTesting(false)
     }
 
     private var full: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 0) {
             circleButton("chevron.left")
-            AddressCapsule(options: options, isDark: isDark, context: context,
-                           width: width - ChromeMetrics.iPhoneAddressInset * 2 - 2 * (ChromeMetrics.iPhoneAddressHeight + 10),
-                           height: ChromeMetrics.iPhoneAddressHeight, elevated: true)
+            Spacer(minLength: 0)
+            HStack(spacing: 0) {
+                Image(systemName: "text.page").font(.system(size: 17))
+                Spacer(minLength: 6)
+                Text(options.address == .hidden ? "" : context.address(options.address == .fullURL ? .domain : options.address))
+                    .font(.system(size: 17, weight: .regular))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 6)
+                Image(systemName: "arrow.clockwise").font(.system(size: 16, weight: .medium))
+            }
+            .padding(.horizontal, 18)
+            .frame(width: min(ChromeMetrics.iPhoneAddressWidth, width - 2 * (ChromeMetrics.iPhoneAddressHeight + 20)),
+                   height: ChromeMetrics.iPhoneAddressHeight)
+            .glassBackground(Capsule())
+            Spacer(minLength: 0)
             circleButton("square.on.square")
         }
-        .padding(.horizontal, ChromeMetrics.iPhoneAddressInset)
+        .foregroundStyle(.white)
+        .padding(.horizontal, min(ChromeMetrics.iPhoneAddressInset, width * 0.08))
     }
 
     private var minimized: some View {
-        Text(domain)
+        Text(options.address == .hidden ? "" : context.domain)
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(palette.primary)
+            .foregroundStyle(.white)
             .padding(.horizontal, 16)
             .frame(height: 30)
-            .background(Capsule().fill(palette.field.opacity(0.96)))
-            .shadow(color: .black.opacity(0.14), radius: 10, y: 3)
-    }
-
-    private var domain: String {
-        options.address == .hidden ? "" : context.domain
+            .glassBackground(Capsule())
     }
 
     private func circleButton(_ symbol: String) -> some View {
         Image(systemName: symbol)
-            .font(.system(size: 18, weight: .medium))
-            .foregroundStyle(palette.primary)
+            .font(.system(size: 20, weight: .medium))
             .frame(width: ChromeMetrics.iPhoneAddressHeight, height: ChromeMetrics.iPhoneAddressHeight)
-            .background(Circle().fill(palette.field.opacity(0.96)))
-            .shadow(color: .black.opacity(0.14), radius: 10, y: 3)
+            .glassBackground(Circle())
+    }
+}
+
+private extension View {
+    /// A flat stand-in for Liquid Glass that renders in saved images: a translucent grey with a
+    /// light rim, as the glass reads over most pages.
+    func glassBackground<S: Shape>(_ shape: S) -> some View {
+        background {
+            shape.fill(Color(white: 0.42, opacity: 0.55))
+                .overlay(shape.stroke(Color.white.opacity(0.28), lineWidth: 1))
+                .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+        }
     }
 }
 

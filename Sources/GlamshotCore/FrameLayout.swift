@@ -2,9 +2,12 @@ import CoreGraphics
 
 /// Where everything goes in a finished shot, in points with the origin at the top left.
 ///
-/// A screen-sized shot is output first: the window and backdrop take their room from the output,
-/// and the page gets what's left. A full page is the other way round: the width is the page's own,
-/// its height is the page's length, and any padding and shadow go around it.
+/// A screen-sized shot is output first: the window and backdrop take their room from the output.
+/// When the output is a device's screen (a Mac, display, iPad or iPhone size), the whole screen keeps
+/// its real size, chrome and page together, and is scaled down into that room, like a screenshot
+/// placed in a layout. Other sizes (the social ones) give the page what's left. A full page is the
+/// other way round: the width is the page's own, its height is the page's length, and any padding
+/// and shadow go around it.
 public struct FrameLayout: Equatable, Sendable {
     /// The whole image.
     public var canvasSize: CGSize
@@ -15,6 +18,12 @@ public struct FrameLayout: Equatable, Sendable {
     public var chromeHeight: CGFloat
     /// The menu bar's height on a desktop, otherwise 0.
     public var menuBarHeight: CGFloat
+    /// How much the window is drawn smaller than its real size: below 1 when a device screen is
+    /// scaled into a canvas or shadow margin.
+    public var windowScale: CGFloat = 1
+    /// The page's real size in points, which the page lays out in; `pageRect` is that size times
+    /// `windowScale`.
+    public var pageSize: CGSize = .zero
 
     /// Lays out `look` in an image of `output` points. For a full page, pass its height in points
     /// as `pageHeight`; `output.width` is then the page's width, not the image's.
@@ -25,13 +34,31 @@ public struct FrameLayout: Equatable, Sendable {
             let menuBar = ChromeMetrics.menuBarHeight
             let area = CGRect(x: 0, y: menuBar, width: output.width, height: max(output.height - menuBar, 1))
             let rect = desktopWindowRect(look.desktop, in: area, chrome: chrome)
+            let page = pageRect(in: rect, chrome: chrome)
             return FrameLayout(
-                canvasSize: output, windowRect: rect, pageRect: pageRect(in: rect, chrome: chrome),
-                chromeHeight: chrome, menuBarHeight: menuBar
+                canvasSize: output, windowRect: rect, pageRect: page,
+                chromeHeight: chrome, menuBarHeight: menuBar, pageSize: page.size
             )
         }
 
         let inset = insets(for: look, output: output, chrome: chrome)
+
+        // A device screen in a frame keeps its real size, scaled down to fit inside the padding.
+        if pageHeight == nil, inset > 0, SizePreset.isScreen(output) {
+            let room = CGSize(width: output.width - inset * 2, height: output.height - inset * 2)
+            let scale = max(min(room.width / output.width, room.height / output.height), 0.05)
+            let size = CGSize(width: (output.width * scale).rounded(), height: (output.height * scale).rounded())
+            let window = CGRect(x: ((output.width - size.width) / 2).rounded(), y: ((output.height - size.height) / 2).rounded(),
+                                width: size.width, height: size.height)
+            return FrameLayout(
+                canvasSize: output, windowRect: window,
+                pageRect: CGRect(x: window.minX, y: window.minY + chrome * scale,
+                                 width: window.width, height: window.height - chrome * scale),
+                chromeHeight: chrome, menuBarHeight: 0, windowScale: scale,
+                pageSize: CGSize(width: output.width, height: output.height - chrome)
+            )
+        }
+
         var window = CGRect(
             x: inset, y: inset,
             width: max(output.width - inset * 2, minimumPageSize.width),
@@ -42,16 +69,17 @@ public struct FrameLayout: Equatable, Sendable {
             window.size = CGSize(width: output.width, height: chrome + max(pageHeight, 1))
             canvas = CGSize(width: window.width + inset * 2, height: window.height + inset * 2)
         }
+        let page = pageRect(in: window, chrome: chrome)
         return FrameLayout(
-            canvasSize: canvas, windowRect: window, pageRect: pageRect(in: window, chrome: chrome),
-            chromeHeight: chrome, menuBarHeight: 0
+            canvasSize: canvas, windowRect: window, pageRect: page,
+            chromeHeight: chrome, menuBarHeight: 0, pageSize: page.size
         )
     }
 
     /// The room the page gets, in points: the web view's size. A full page is the output's own
     /// width, with the output's height as its screen for anything sized from the viewport.
     public static func pageSize(output: CGSize, look: Look, fullPage: Bool = false) -> CGSize {
-        fullPage ? output : make(output: output, look: look).pageRect.size
+        fullPage ? output : make(output: output, look: look).pageSize
     }
 
     /// The smallest page Glamshot lays out, in points.

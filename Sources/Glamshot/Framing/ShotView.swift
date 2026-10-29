@@ -89,28 +89,35 @@ struct ShotView<Page: View>: View {
         .clipped()
     }
 
+    /// The window at its real size, scaled into its place: a device screen in a canvas is drawn
+    /// whole and shrunk, so its chrome stays in proportion to the page.
     private var window: some View {
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        let scale = layout.windowScale
+        let natural = CGSize(width: layout.windowRect.width / scale, height: layout.windowRect.height / scale)
+        let shape = RoundedRectangle(cornerRadius: cornerRadius * scale, style: .continuous)
         return VStack(spacing: 0) {
             if look.window == .safari {
                 switch look.safari.device {
                 case .iPhone:
-                    StatusBarView(device: .iPhone, isDark: chromeIsDark, width: layout.windowRect.width, pageColor: context.pageTopColor)
+                    StatusBarView(device: .iPhone, isDark: chromeIsDark, width: natural.width, pageColor: context.pageTopColor)
                 case .iPad:
-                    IPadSafariChrome(options: look.safari, isDark: chromeIsDark, context: context, width: layout.windowRect.width)
+                    IPadSafariChrome(options: look.safari, isDark: chromeIsDark, context: context, width: natural.width)
                 case .mac, .automatic:
-                    SafariChromeView(options: look.safari, isDark: chromeIsDark, context: context, width: layout.windowRect.width)
+                    SafariChromeView(options: look.safari, isDark: chromeIsDark, context: context, width: natural.width)
                 }
             }
             page()
-                .frame(width: layout.pageRect.width, height: layout.pageRect.height)
+                .frame(width: layout.pageSize.width, height: layout.pageSize.height)
                 .clipped()
                 .overlay {
                     if drawsPageOverlay, look.window == .safari, look.safari.device == .iPhone {
-                        PhoneAddressBar(options: look.safari, isDark: chromeIsDark, context: context, width: layout.pageRect.width)
+                        PhoneAddressBar(options: look.safari, isDark: chromeIsDark, context: context, width: layout.pageSize.width)
                     }
                 }
         }
+        .frame(width: natural.width, height: natural.height, alignment: .top)
+        .scaleEffect(scale, anchor: .topLeading)
+        .frame(width: layout.windowRect.width, height: layout.windowRect.height, alignment: .topLeading)
         .clipShape(shape)
         .overlay {
             if look.window == .safari, look.safari.device == .mac {

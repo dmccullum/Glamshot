@@ -323,7 +323,15 @@ final class ShootModel {
     func applyViewport() {
         webView.setFrameSize(pageSize)
         webView.pageZoom = capture.zoom
+        Self.applyViewportInsets(to: webView, for: effectiveLook)
         refreshPageTopColor()
+    }
+
+    /// Safari on iPhone's bottom bar floats over the page. Its small viewport (svh) stops above
+    /// the bar, so a 100svh hero ends there, while the page keeps drawing underneath, as on a phone.
+    static func applyViewportInsets(to webView: WKWebView, for look: Look) {
+        let bottom = look.window == .safari && look.safari.device == .iPhone ? ChromeMetrics.iPhoneBottomBarInset : 0
+        webView.setMinimumViewportInset(NSEdgeInsets(), maximumViewportInset: NSEdgeInsets(top: 0, left: 0, bottom: bottom, right: 0))
     }
 
     private func applyHiddenSelectors() {
@@ -442,9 +450,11 @@ final class ShootModel {
         let original = (size: webView.frame.size, zoom: webView.pageZoom)
         webView.setFrameSize(room)
         webView.pageZoom = options.zoom
+        Self.applyViewportInsets(to: webView, for: look.resolved(for: options.outputSize, fullPage: options.fullPage))
         defer {
             webView.setFrameSize(original.size)
             webView.pageZoom = original.zoom
+            Self.applyViewportInsets(to: webView, for: effectiveLook)
         }
         let page = try await photographer.capture(options)
         let image = try await ShotRenderer.render(
