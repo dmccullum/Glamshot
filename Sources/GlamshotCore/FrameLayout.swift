@@ -2,12 +2,10 @@ import CoreGraphics
 
 /// Where everything goes in a finished shot, in points with the origin at the top left.
 ///
-/// For a device's screen (a Mac, display, iPad or iPhone size, or a custom one), the size is the
-/// screen's: the window keeps it, chrome and page together, and a canvas's padding or a shadow's
-/// room goes around it, so padding is even on every side. A full page works the same way, with the
-/// page's length as its height. A social size is the finished image instead: the padding comes out
-/// of it and the page gets what's left. On a desktop the size is the desktop's, and the window
-/// fills it below the menu bar, inset by the padding on every side.
+/// The size is the finished image for every frame: a canvas's padding or a shadow's room comes
+/// out of it, evenly on every side, and the window and page get what's left. On a desktop the
+/// window fills it below the menu bar, inset by the padding. A full page is the exception: the
+/// size's width is the page's, and the frame goes around the page's whole length.
 public struct FrameLayout: Equatable, Sendable {
     /// The whole image.
     public var canvasSize: CGSize
@@ -43,16 +41,6 @@ public struct FrameLayout: Equatable, Sendable {
         }
 
         let inset = insets(for: look, output: output, padding: padding(for: look, output: output), chrome: chrome)
-
-        // A device screen keeps its real size and the frame grows around it.
-        if pageHeight == nil, SizePreset.isScreen(output) {
-            let window = CGRect(x: inset, y: inset, width: output.width, height: output.height)
-            let page = pageRect(in: window, chrome: chrome)
-            return FrameLayout(
-                canvasSize: CGSize(width: output.width + inset * 2, height: output.height + inset * 2),
-                windowRect: window, pageRect: page, chromeHeight: chrome, menuBarHeight: 0, pageSize: page.size
-            )
-        }
 
         var window = CGRect(
             x: inset, y: inset,
@@ -91,12 +79,13 @@ public struct FrameLayout: Equatable, Sendable {
         look.canvas.autoPadding ? automaticPadding(for: output) : max(look.canvas.padding, 0)
     }
 
-    /// Room around the window on every side of `output`: the padding on a canvas or desktop, or on
-    /// no backdrop, space for the shadow so a transparent image doesn't cut it off.
+    /// Room around the window on every side of `output`: the padding on a canvas or desktop, or for
+    /// Safari on no backdrop, space for the shadow so a transparent image doesn't cut it off. A bare
+    /// page has neither and fills the image.
     static func insets(for look: Look, output: CGSize, padding: CGFloat, chrome: CGFloat) -> CGFloat {
-        let wanted = look.backdrop == .none
-            ? (look.shadow > 0 ? (ChromeMetrics.shadowMargin * min(look.shadow, 1)).rounded() : 0)
-            : padding
+        let wanted = look.backdrop != .none ? padding
+            : look.window == .safari && look.shadow > 0 ? (ChromeMetrics.shadowMargin * min(look.shadow, 1)).rounded()
+            : 0
         // Never so much that the page disappears.
         let limit = max(min((output.width - minimumPageSize.width) / 2, (output.height - chrome - minimumPageSize.height) / 2), 0)
         return min(wanted, limit).rounded()

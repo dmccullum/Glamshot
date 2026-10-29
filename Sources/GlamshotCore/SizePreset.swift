@@ -76,11 +76,6 @@ extension SizePreset {
     ]
 
     public static let macBookPro14 = builtIns[2]
-
-    /// Whether an output is a screen (any device or custom size) rather than a social image size.
-    public static func isScreen(_ output: CGSize) -> Bool {
-        !builtIns.contains { $0.group == .social && CGFloat($0.width) == output.width && CGFloat($0.height) == output.height }
-    }
 }
 
 public enum UserAgent: String, Codable, CaseIterable, Sendable {

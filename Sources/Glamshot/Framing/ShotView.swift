@@ -68,7 +68,10 @@ struct ShotView<Page: View>: View {
         }
     }
 
-    private var shadowStrength: CGFloat { min(max(look.shadow, 0), 1) }
+    /// A bare page has no shadow; it fills the image.
+    private var shadowStrength: CGFloat {
+        look.window == .none && look.backdrop == .none ? 0 : min(max(look.shadow, 0), 1)
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
