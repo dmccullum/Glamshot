@@ -188,7 +188,7 @@ struct GlamshotCommands: Commands {
             ForEach(FrameStyle.allCases, id: \.self) { style in
                 Toggle(style.title, isOn: Binding(
                     get: { model?.effectiveLook.frameStyle == style },
-                    set: { _ in model?.setFrameStyle(style) }
+                    set: { _ in model?.chooseFrame(style) }
                 ))
                 .disabled(!(model?.availableFrameStyles.contains(style) ?? false))
             }
@@ -197,6 +197,14 @@ struct GlamshotCommands: Commands {
                 set: { value in model?.setLook(as: value ? "Show Safari Window" : "Hide Safari Window") { $0.window = value ? .safari : .none } }
             ))
             .disabled(model?.effectiveLook.frameStyle != .canvas)
+            Divider()
+            // The canvas's selection, which decides the inspector's last card.
+            Button("Select Backdrop") { model?.select(.backdrop) }
+                .disabled(!(model?.canSelect(.backdrop) ?? false))
+            Button("Select Window") { model?.select(.window) }
+                .disabled(!(model?.canSelect(.window) ?? false))
+            Button("Select None") { model?.select(.none) }
+                .disabled((model?.selectedObject ?? CanvasObject.none) == CanvasObject.none)
             Divider()
             Toggle("Auto Padding", isOn: Binding(
                 get: { model?.look.canvas.autoPadding ?? false },

@@ -20,7 +20,7 @@ struct CanvasView: View {
         GeometryReader { proxy in
             let look = model.effectiveLook
             let layout = FrameLayout.make(output: model.capture.outputSize, look: look, pageHeight: fullPageHeight)
-            let available = CGSize(width: max(proxy.size.width - 48, 1), height: max(proxy.size.height - 48, 1))
+            let available = CGSize(width: max(proxy.size.width - 48, 1), height: max(proxy.size.height - 48 - Self.barRoom, 1))
             let fit = min(available.width / layout.canvasSize.width, available.height / layout.canvasSize.height, 1)
             let scale = model.zoom == .actual ? 1 : fit
             let shown = CGSize(width: layout.canvasSize.width * scale, height: layout.canvasSize.height * scale)
@@ -38,6 +38,7 @@ struct CanvasView: View {
                     .frame(width: shown.width, height: shown.height, alignment: .topLeading)
                     .allowsHitTesting(false)
 
+                    BackdropTarget(model: model, layout: layout, scale: scale)
                     if !(model.capture.fullPage && model.fullPagePreview != nil) {
                         livePage(layout: layout, look: look, scale: scale)
                     }
@@ -49,6 +50,13 @@ struct CanvasView: View {
                             .scaleEffect(scale, anchor: .topLeading)
                             .frame(width: layout.pageRect.width * scale, height: layout.pageRect.height * scale, alignment: .topLeading)
                             .offset(x: layout.pageRect.minX * scale, y: layout.pageRect.minY * scale)
+                    }
+                    if look.window == .safari, look.backdrop != .desktop {
+                        WindowChromeTarget(model: model, layout: layout, scale: scale)
+                    }
+                    // Below the address, so a click there edits it rather than moving the window.
+                    if look.backdrop == .desktop {
+                        DesktopWindowHandles(model: model, layout: layout, scale: scale) { model.select(.window) }
                     }
                     if look.backdrop == .desktop {
                         Color.clear
@@ -67,18 +75,21 @@ struct CanvasView: View {
                             .help("Edit the Address Shown in the Window")
                             .popover(isPresented: $isEditingAddress) { AddressEditor(model: model) }
                     }
-                    if look.backdrop == .desktop {
-                        DesktopWindowHandles(model: model, layout: layout, scale: scale)
-                    }
+                    CanvasSelectionOverlay(model: model, layout: layout, scale: scale)
                 }
                 .frame(width: shown.width, height: shown.height, alignment: .topLeading)
                 .contextMenu { CanvasMenu(model: model) }
                 .onDrag { dragItem() }
                 .padding(24)
+                .padding(.bottom, Self.barRoom)
                 .frame(minWidth: proxy.size.width, minHeight: proxy.size.height)
+                // A click around the image clears the selection.
+                .contentShape(Rectangle())
+                .onTapGesture { model.select(.none) }
             }
             .scrollDisabled(model.zoom == .fit)
             .overlay(alignment: .top) { fullPageCapsule.padding(.top, 12) }
+            .overlay(alignment: .bottom) { FrameBar(model: model).padding(.bottom, DMLayout.overlayMargin) }
 
         }
         .background(Color(nsColor: .underPageBackgroundColor))
@@ -88,6 +99,9 @@ struct CanvasView: View {
             return true
         }
     }
+
+    /// Room under the image for the frame bar, so the bar doesn't cover it when it fits.
+    private static let barRoom: CGFloat = 56
 
     /// Where the address field sits in the window mockup, for clicking to edit it.
     private func addressRect(layout: FrameLayout, look: Look) -> CGRect? {

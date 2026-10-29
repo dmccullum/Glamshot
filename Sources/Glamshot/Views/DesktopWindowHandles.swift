@@ -8,6 +8,8 @@ struct DesktopWindowHandles: View {
     let model: ShootModel
     let layout: FrameLayout
     let scale: CGFloat
+    /// Called when the window is clicked or dragged, to select it.
+    var select: () -> Void = {}
 
     @State private var dragStart: (rect: CGRect, look: Look)?
     @State private var isDragging = false
@@ -24,6 +26,7 @@ struct DesktopWindowHandles: View {
                 .contentShape(Rectangle())
                 .frame(width: rect.width * scale, height: max(layout.chromeHeight, 24) * scale)
                 .offset(x: rect.minX * scale, y: rect.minY * scale)
+                .onTapGesture(perform: select)
                 .gesture(drag(name: "Move Window") { start, translation in
                     let moved = CGRect(origin: CGPoint(x: start.minX + translation.width, y: start.minY + translation.height), size: start.size)
                     // 8 screen points of pull, whatever the zoom.
@@ -70,6 +73,7 @@ struct DesktopWindowHandles: View {
                     dragStart = (layout.windowRect, model.look)
                     model.beginGesture()
                     isDragging = true
+                    select()
                 }
                 guard let start = dragStart else { return }
                 let translation = CGSize(width: value.translation.width / scale, height: value.translation.height / scale)

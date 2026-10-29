@@ -366,6 +366,37 @@ final class ShootModel {
         setLook(as: "Change Frame") { $0.frameStyle = style }
     }
 
+    // MARK: Canvas selection
+
+    /// What was last clicked on the canvas. The page itself can't be picked, since clicks there go
+    /// to the website; see `selectedObject` for what applies now.
+    var selection: CanvasObject = .none
+
+    /// The selection, or none when the frame no longer draws what was picked.
+    var selectedObject: CanvasObject { canSelect(selection) ? selection : .none }
+
+    func canSelect(_ object: CanvasObject) -> Bool {
+        switch object {
+        case .none: true
+        case .backdrop: effectiveLook.backdrop != .none
+        case .window: effectiveLook.window == .safari
+        }
+    }
+
+    func select(_ object: CanvasObject) {
+        selection = canSelect(object) ? object : .none
+    }
+
+    /// Picks a frame from the canvas bar and selects what it adds, so that object's card appears.
+    func chooseFrame(_ style: FrameStyle) {
+        setFrameStyle(style)
+        switch style {
+        case .page: select(.none)
+        case .canvas: select(.backdrop)
+        case .safari, .desktop: select(.window)
+        }
+    }
+
     /// The desktop window's outer size in points. Setting it resizes around the window's center.
     var desktopWindowSize: CGSize {
         get { FrameLayout.make(output: capture.outputSize, look: effectiveLook).windowRect.size }
@@ -384,6 +415,16 @@ final class ShootModel {
     /// The canvas padding actually used: the automatic amount or the custom one.
     var effectivePadding: CGFloat {
         look.canvas.autoPadding ? FrameLayout.automaticPadding(for: capture.outputSize) : look.canvas.padding
+    }
+
+    /// Sets the canvas padding; the automatic amount turns Auto back on. Call inside a gesture.
+    func setPadding(_ value: CGFloat) {
+        if value == FrameLayout.automaticPadding(for: capture.outputSize) {
+            look.canvas.autoPadding = true
+        } else {
+            look.canvas.autoPadding = false
+            look.canvas.padding = value
+        }
     }
 
     /// The desktop window's width as a share of the desktop. Setting it scales the window evenly.
@@ -659,6 +700,11 @@ struct Activity: Equatable {
 
 enum CanvasZoom: Equatable {
     case fit, actual
+}
+
+/// What can be selected on the canvas: the backdrop (canvas or desktop) or the Safari window.
+enum CanvasObject: Equatable {
+    case none, backdrop, window
 }
 
 /// A saved or copied image, kept in the window's shots tray for this session.

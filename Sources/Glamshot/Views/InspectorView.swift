@@ -35,7 +35,7 @@ struct InspectorView: View {
 
 // MARK: - Size
 
-private struct SizeCard: View {
+struct SizeCard: View {
     let model: ShootModel
     @State private var width = ""
     @State private var height = ""
@@ -132,7 +132,7 @@ private struct SizeCard: View {
 
 // MARK: - Page
 
-private struct PageCard: View {
+struct PageCard: View {
     let model: ShootModel
 
     /// The page's room in points; at 100% zoom it lays out at this width.
@@ -330,7 +330,7 @@ private struct FrameThumbnail: View {
 }
 
 /// The desktop window's size in points, live as it's dragged, with Center and Fill.
-private struct DesktopWindowSize: View {
+struct DesktopWindowSize: View {
     let model: ShootModel
     @State private var width = ""
     @State private var height = ""
@@ -432,7 +432,7 @@ private struct WindowCard: View {
 }
 
 /// The text a Custom address shows; it belongs to the window, not the frame settings.
-private struct CustomAddressField: View {
+struct CustomAddressField: View {
     @Bindable var model: ShootModel
     @State private var text = ""
 
@@ -449,7 +449,7 @@ private struct CustomAddressField: View {
 // MARK: - Background
 
 /// Eight gradients, a color tile and an image tile in a 5 × 2 grid, with Shuffle beside the title.
-private struct BackgroundPicker: View {
+struct BackgroundPicker: View {
     let model: ShootModel
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 5)
@@ -535,7 +535,7 @@ private struct ColorTile: View {
 // MARK: - Rows
 
 /// A title at the left and its control at the right edge of the card.
-private struct LabeledRow<Control: View>: View {
+struct LabeledRow<Control: View>: View {
     let title: String
     @ViewBuilder let control: () -> Control
 
@@ -554,7 +554,7 @@ private struct LabeledRow<Control: View>: View {
 }
 
 /// A title at the left and a small switch at the right edge of the card.
-private struct SwitchRow: View {
+struct SwitchRow: View {
     let title: String
     @Binding var isOn: Bool
 

@@ -76,9 +76,35 @@ public struct FrameLayout: Equatable, Sendable {
         case .desktop:
             wanted = 0
         }
-        // Never so much that the page disappears.
-        let limit = max(min((output.width - minimumPageSize.width) / 2, (output.height - chrome - minimumPageSize.height) / 2), 0)
-        return min(wanted, limit).rounded()
+        return min(wanted, maximumPadding(output: output, chrome: chrome)).rounded()
+    }
+
+    /// The most room a canvas leaves around the window before the page would shrink below
+    /// `minimumPageSize`.
+    public static func maximumPadding(output: CGSize, chrome: CGFloat) -> CGFloat {
+        max(min((output.width - minimumPageSize.width) / 2, (output.height - chrome - minimumPageSize.height) / 2), 0)
+    }
+
+    /// The canvas edges a padding drag can start from.
+    public enum PaddingEdge: CaseIterable, Sendable {
+        case top, bottom, leading, trailing
+    }
+
+    /// The padding a drag of one canvas edge sets, from `start` and the drag's `translation` in
+    /// points: pulling an edge toward the middle adds room on every side. Within `tolerance` of
+    /// `automatic` it snaps there, so the drag can find Auto again.
+    public static func draggedPadding(from start: CGFloat, edge: PaddingEdge, translation: CGSize, automatic: CGFloat,
+                                      limit: CGFloat, tolerance: CGFloat) -> (padding: CGFloat, isAutomatic: Bool) {
+        let delta: CGFloat
+        switch edge {
+        case .top: delta = translation.height
+        case .bottom: delta = -translation.height
+        case .leading: delta = translation.width
+        case .trailing: delta = -translation.width
+        }
+        let padding = min(max(start + delta, 0), limit).rounded()
+        if abs(padding - automatic) <= tolerance, automatic <= limit { return (automatic, true) }
+        return (padding, false)
     }
 
     static func desktopWindowRect(_ desktop: DesktopOptions, in area: CGRect, chrome: CGFloat) -> CGRect {

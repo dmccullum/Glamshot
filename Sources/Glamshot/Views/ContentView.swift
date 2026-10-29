@@ -20,7 +20,7 @@ struct ContentView: View {
         }
         .statusCapsule($model.status)
         .inspector(isPresented: $showsInspector) {
-            InspectorView(model: model)
+            SelectionInspector(model: model)
                 .inspectorColumnWidth(min: 260, ideal: 290, max: 360)
         }
         .toolbar { ShootToolbar(model: model, showsInspector: $showsInspector) }

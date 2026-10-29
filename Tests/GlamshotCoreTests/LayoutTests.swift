@@ -90,6 +90,35 @@ struct FrameLayoutTests {
         #expect(!none.x && !none.y && none.rect == far)
     }
 
+    @Test func draggingAnEdgeInwardAddsPadding() {
+        let pull = { (edge: FrameLayout.PaddingEdge, t: CGSize) in
+            FrameLayout.draggedPadding(from: 100, edge: edge, translation: t, automatic: 70, limit: 400, tolerance: 6)
+        }
+        #expect(pull(.leading, CGSize(width: 20, height: 0)).padding == 120)
+        #expect(pull(.trailing, CGSize(width: 20, height: 0)).padding == 80)
+        #expect(pull(.top, CGSize(width: 0, height: -150)).padding == 0)
+        #expect(pull(.bottom, CGSize(width: 0, height: -900)).padding == 400)
+    }
+
+    @Test func draggedPaddingSnapsToAuto() {
+        let near = FrameLayout.draggedPadding(from: 100, edge: .leading, translation: CGSize(width: -26, height: 0),
+                                              automatic: 70, limit: 400, tolerance: 6)
+        #expect(near.isAutomatic && near.padding == 70)
+        let far = FrameLayout.draggedPadding(from: 100, edge: .leading, translation: CGSize(width: -10, height: 0),
+                                             automatic: 70, limit: 400, tolerance: 6)
+        #expect(!far.isAutomatic && far.padding == 90)
+    }
+
+    @Test func paddingLimitKeepsTheMinimumPage() {
+        let limit = FrameLayout.maximumPadding(output: CGSize(width: 1000, height: 600), chrome: 52)
+        #expect(limit == 214)   // (600 − 52 − 120) / 2, under (1000 − 200) / 2
+        var look = Look(name: "Canvas", window: .safari, backdrop: .canvas)
+        look.canvas.autoPadding = false
+        look.canvas.padding = limit
+        let layout = FrameLayout.make(output: CGSize(width: 1000, height: 600), look: look)
+        #expect(layout.pageRect.height == FrameLayout.minimumPageSize.height)
+    }
+
     @Test func desktopWindowFollowsTheOutput() {
         let look = Look(name: "Desktop", window: .safari, backdrop: .desktop)
         let small = FrameLayout.make(output: output, look: look)
