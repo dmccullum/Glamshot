@@ -2,12 +2,11 @@ import CoreGraphics
 
 /// Where everything goes in a finished shot, in points with the origin at the top left.
 ///
-/// A screen-sized shot is output first: the window and backdrop take their room from the output.
-/// When the output is a device's screen (a Mac, display, iPad or iPhone size), the whole screen keeps
-/// its real size, chrome and page together, and is scaled down into that room, like a screenshot
-/// placed in a layout. Other sizes (the social ones) give the page what's left. A full page is the
-/// other way round: the width is the page's own, its height is the page's length, and any padding
-/// and shadow go around it.
+/// For a device's screen (a Mac, display, iPad or iPhone size, or a custom one), the size is the
+/// screen's: the window keeps it, chrome and page together, and a canvas's padding or a shadow's
+/// room goes around it, so padding is even on every side. A full page works the same way, with the
+/// page's length as its height. A social size is the finished image instead: the padding comes out
+/// of it and the page gets what's left. On a desktop the size is the desktop's.
 public struct FrameLayout: Equatable, Sendable {
     /// The whole image.
     public var canvasSize: CGSize
@@ -43,19 +42,13 @@ public struct FrameLayout: Equatable, Sendable {
 
         let inset = insets(for: look, output: output, chrome: chrome)
 
-        // A device screen in a frame keeps its real size, scaled down to fit inside the padding.
-        if pageHeight == nil, inset > 0, SizePreset.isScreen(output) {
-            let room = CGSize(width: output.width - inset * 2, height: output.height - inset * 2)
-            let scale = max(min(room.width / output.width, room.height / output.height), 0.05)
-            let size = CGSize(width: (output.width * scale).rounded(), height: (output.height * scale).rounded())
-            let window = CGRect(x: ((output.width - size.width) / 2).rounded(), y: ((output.height - size.height) / 2).rounded(),
-                                width: size.width, height: size.height)
+        // A device screen keeps its real size and the frame grows around it.
+        if pageHeight == nil, SizePreset.isScreen(output) {
+            let window = CGRect(x: inset, y: inset, width: output.width, height: output.height)
+            let page = pageRect(in: window, chrome: chrome)
             return FrameLayout(
-                canvasSize: output, windowRect: window,
-                pageRect: CGRect(x: window.minX, y: window.minY + chrome * scale,
-                                 width: window.width, height: window.height - chrome * scale),
-                chromeHeight: chrome, menuBarHeight: 0, windowScale: scale,
-                pageSize: CGSize(width: output.width, height: output.height - chrome)
+                canvasSize: CGSize(width: output.width + inset * 2, height: output.height + inset * 2),
+                windowRect: window, pageRect: page, chromeHeight: chrome, menuBarHeight: 0, pageSize: page.size
             )
         }
 

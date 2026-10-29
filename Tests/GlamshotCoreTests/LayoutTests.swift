@@ -20,14 +20,21 @@ struct FrameLayoutTests {
         #expect(layout.pageRect.size == CGSize(width: 1512, height: 982 - ChromeMetrics.toolbarHeight))
     }
 
-    @Test func aDeviceScreenKeepsItsSizeAndScalesIntoTheShadowRoom() {
+    @Test func aDeviceScreenKeepsItsSizeAndTheShadowRoomGoesAround() {
         let layout = FrameLayout.make(output: output, look: Look(name: "Safari", window: .safari, backdrop: .none, shadow: 1))
         let margin = ChromeMetrics.shadowMargin
-        #expect(layout.canvasSize == output)
+        #expect(layout.windowRect == CGRect(x: margin, y: margin, width: 1512, height: 982))
+        #expect(layout.canvasSize == CGSize(width: 1512 + margin * 2, height: 982 + margin * 2))
         #expect(layout.pageSize == CGSize(width: 1512, height: 982 - 52))
-        #expect(abs(layout.windowScale - (982 - margin * 2) / 982) < 0.001)
-        #expect(layout.windowRect.minY == margin)
-        #expect(abs(layout.windowRect.midX - 756) <= 1)
+    }
+
+    @Test func paddingIsEvenAroundADeviceScreen() {
+        let macBook16 = CGSize(width: 1728, height: 1117)
+        let layout = FrameLayout.make(output: macBook16, look: Look(name: "Canvas", window: .safari, backdrop: .canvas))
+        let window = layout.windowRect
+        let gaps = [window.minX, window.minY, layout.canvasSize.width - window.maxX, layout.canvasSize.height - window.maxY]
+        #expect(Set(gaps).count == 1)
+        #expect(window.size == macBook16)
     }
 
     @Test func anIPhoneOnACanvasLaysOutAtThePhonesWidth() {
@@ -35,8 +42,7 @@ struct FrameLayoutTests {
         let look = Look(name: "Canvas", window: .safari, backdrop: .canvas, safari: SafariOptions(device: .iPhone))
         let layout = FrameLayout.make(output: phone, look: look)
         #expect(layout.pageSize.width == 402)
-        #expect(layout.windowScale < 1)
-        #expect(layout.canvasSize == phone)
+        #expect(layout.windowRect.size == phone)
     }
 
     @Test func tabBarAddsItsHeight() {
@@ -45,7 +51,7 @@ struct FrameLayoutTests {
         #expect(FrameLayout.make(output: output, look: look).pageRect.height == CGFloat(982 - 52 - 28))
     }
 
-    @Test func canvasPadsInsideTheOutput() {
+    @Test func aSocialCanvasPadsInsideTheImage() {
         let social = CGSize(width: 1080, height: 1350)
         let look = Look(name: "Canvas", window: .safari, backdrop: .canvas)
         let layout = FrameLayout.make(output: social, look: look)
