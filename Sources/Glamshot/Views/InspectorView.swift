@@ -54,7 +54,8 @@ private struct PageCard: View {
 
     var body: some View {
         InspectorCard("Page", systemImage: "rectangle.dashed") {
-            if isDesktop { displayPicker } else { sizePicker }
+            // Separate identities, so switching backdrops never hands one pop-up's selection to the other.
+            if isDesktop { displayPicker.id("display") } else { sizePicker.id("size") }
         } content: {
             HStack(spacing: 8) {
                 TextField("Width", text: $width).onSubmit(commit)

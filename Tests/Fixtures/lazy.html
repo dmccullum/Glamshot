@@ -1,0 +1,35 @@
+<!doctype html>
+<html><head><meta name="viewport" content="width=device-width">
+<style>
+  html, body { margin: 0; background: rgb(0, 0, 255); }
+  .spacer { height: 1500px; }
+  .slot { height: 200px; position: relative; }
+  .slot img, .slot .reveal { position: absolute; left: 0; top: 0; width: 400px; height: 200px; }
+  /* Fades in when scrolled into view, like many marketing pages. */
+  .reveal { background: rgb(0, 255, 0); opacity: 0; transition: opacity 1.2s ease 0.3s; }
+  .reveal.shown { opacity: 1; }
+</style></head>
+<body>
+  <div class="spacer"></div>
+  <!-- Native lazy loading -->
+  <div class="slot" id="native"><img loading="lazy" src="green.png"></div>
+  <div class="spacer"></div>
+  <!-- A script swaps in the source when the image nears the viewport -->
+  <div class="slot" id="scripted"><img data-src="green.png"></div>
+  <div class="spacer"></div>
+  <!-- A block that fades in when it enters the viewport -->
+  <div class="slot" id="faded"><div class="reveal"></div></div>
+  <div class="spacer"></div>
+  <script>
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const el = entry.target;
+        if (el.dataset.src) { setTimeout(() => { el.src = el.dataset.src; }, 250); }
+        if (el.classList.contains('reveal')) el.classList.add('shown');
+        observer.unobserve(el);
+      }
+    });
+    document.querySelectorAll('img[data-src], .reveal').forEach(el => observer.observe(el));
+  </script>
+</body></html>

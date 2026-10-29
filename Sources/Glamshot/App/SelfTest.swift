@@ -36,6 +36,19 @@ enum SelfTest {
             stage.close()
         }
 
+        // Lazy images, script-loaded images and fade-ins below the fold all appear in a full page.
+        let green = Pixel(r: 0, g: 255, b: 0)
+        let lazy = await Stage(fixtures.appending(path: "lazy.html"), viewport: CGSize(width: 800, height: 600))
+        if let capture = await attempt("lazy content", { try await lazy.photographer.capture(
+            CaptureOptions(width: 800, height: 600, scale: 1, fullPage: true, delay: 0)) }) {
+            check("lazy content page height", capture.image.height == 6600, "\(capture.image.height)")
+            for (name, top) in [("native lazy image", 1500), ("script-loaded image", 3200), ("fade-in block", 4900)] {
+                let pixel = capture.image.pixel(x: 200, y: top + 100)
+                check(name, pixel == green, "\(pixel)")
+            }
+        }
+        lazy.close()
+
         // A window behind other apps (here, ordered out) still finishes a full-page capture.
         let hidden = await Stage(fixtures.appending(path: "bands.html"), viewport: CGSize(width: 800, height: 600))
         hidden.window.orderOut(nil)

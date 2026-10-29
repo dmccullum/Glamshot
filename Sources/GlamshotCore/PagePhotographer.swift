@@ -96,6 +96,7 @@ public final class PagePhotographer {
     }
 
     private func photographWholePage(_ options: CaptureOptions, viewport: CGSize) async throws -> PageCapture {
+        try await run(Self.settleMotionScript)
         try await run(Self.scrollThroughScript)
         try await run(Self.recordHeightsScript)
         let maximumHeight = CGFloat(CaptureOptions.maximumPixelHeight / options.scale)
@@ -188,6 +189,20 @@ public final class PagePhotographer {
         await new Promise(r => setTimeout(r, 150));
         """
 
+    /// Content that fades or slides in when scrolled into view would be photographed mid-way, or
+    /// not at all. Jump every transition and animation to its end, and load lazy images now.
+    static let settleMotionScript = """
+        const style = document.createElement('style');
+        style.id = 'glamshot-settle';
+        style.textContent = `*, *::before, *::after {
+            transition-duration: 0s !important; transition-delay: 0s !important;
+            animation-duration: 0s !important; animation-delay: 0s !important;
+            scroll-behavior: auto !important;
+        }`;
+        document.documentElement.appendChild(style);
+        for (const img of document.querySelectorAll('img[loading="lazy"]')) img.loading = 'eager';
+        """
+
     static let recordHeightsScript = """
         const heights = new Map();
         for (const el of document.querySelectorAll('body, body *')) heights.set(el, el.offsetHeight);
@@ -217,6 +232,14 @@ public final class PagePhotographer {
         const pending = [...document.images].filter(i => !i.complete)
             .map(i => new Promise(r => { i.addEventListener('load', r); i.addEventListener('error', r); }));
         await Promise.race([Promise.all(pending), new Promise(r => setTimeout(r, 3000))]);
+        // Then until nothing new has loaded for 400 ms (at most 4 s), for images scripts add late.
+        const start = performance.now();
+        let count = performance.getEntriesByType('resource').length, quietSince = performance.now();
+        while (performance.now() - start < 4000 && performance.now() - quietSince < 400) {
+            await new Promise(r => setTimeout(r, 100));
+            const now = performance.getEntriesByType('resource').length;
+            if (now !== count) { count = now; quietSince = performance.now(); }
+        }
         await Promise.race([
             new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))),
             new Promise(r => setTimeout(r, 150))
@@ -224,6 +247,7 @@ public final class PagePhotographer {
         """
 
     static let restoreScript = """
+        document.getElementById('glamshot-settle')?.remove();
         const state = window.__glamshot;
         if (state) {
             for (const [el, style] of state.pinned) {
