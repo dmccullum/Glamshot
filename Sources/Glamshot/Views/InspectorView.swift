@@ -482,14 +482,15 @@ private struct BackgroundPicker: View {
                     .accessibilityLabel(entry.name)
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
-                ColorTile(model: model, selected: model.look.background.color != nil)
+                Button { BackgroundColorPanel.shared.show(for: model) } label: {
+                    tile(selected: model.look.background.color != nil) { symbolTile("paintpalette") }
+                }
+                .buttonStyle(.plain)
+                .help("Color…")
+                .accessibilityLabel("Color…")
+                .accessibilityAddTraits(model.look.background.color != nil ? .isSelected : [])
                 Button { Task { await model.chooseBackgroundImage() } } label: {
-                    tile(selected: isImage) {
-                        ZStack {
-                            Color.primary.opacity(0.06)
-                            Image(systemName: "photo").foregroundStyle(.secondary)
-                        }
-                    }
+                    tile(selected: isImage) { symbolTile("photo") }
                 }
                 .buttonStyle(.plain)
                 .help("Image…")
@@ -503,6 +504,14 @@ private struct BackgroundPicker: View {
         return false
     }
 
+    /// A gray tile with a symbol, for the choices that open a panel.
+    private func symbolTile(_ symbol: String) -> some View {
+        ZStack {
+            Color.primary.opacity(0.06)
+            Image(systemName: symbol).foregroundStyle(.secondary)
+        }
+    }
+
     private func tile<Content: View>(selected: Bool, @ViewBuilder content: () -> Content) -> some View {
         content()
             .frame(height: 30)
@@ -514,24 +523,43 @@ private struct BackgroundPicker: View {
     }
 }
 
-/// A tile that shows the background color and opens the color panel.
-private struct ColorTile: View {
-    let model: ShootModel
-    let selected: Bool
+/// The shared color panel, setting the background color. Each burst of changes is one undo step.
+final class BackgroundColorPanel: NSObject {
+    static let shared = BackgroundColorPanel()
+    private weak var model: ShootModel?
+    private var settle: Task<Void, Never>?
 
-    var body: some View {
-        ColorPicker("Color", selection: Binding(
-            get: { model.look.background.color ?? .white },
-            set: { color in model.setLook(as: "Change Background") { $0.background = .color(hex: NSColor(color).hexString) } }
-        ))
-        .labelsHidden()
-        .frame(maxWidth: .infinity)
-        .frame(height: 30)
-        .overlay {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2)
+    func show(for model: ShootModel) {
+        finish()
+        self.model = model
+        let panel = NSColorPanel.shared
+        panel.setTarget(nil)
+        panel.setAction(nil)
+        panel.showsAlpha = false
+        panel.isContinuous = true
+        panel.color = model.look.background.color.map { NSColor($0) } ?? .white
+        panel.setTarget(self)
+        panel.setAction(#selector(colorChanged(_:)))
+        panel.orderFront(nil)
+        // Choosing the tile picks the panel's color, as clicking a color well would.
+        colorChanged(panel)
+    }
+
+    @objc private func colorChanged(_ panel: NSColorPanel) {
+        guard let model else { return }
+        model.beginGesture()
+        model.look.background = .color(hex: panel.color.hexString)
+        settle?.cancel()
+        settle = Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            model.endGesture(as: "Change Background")
         }
-        .help("Color")
+    }
+
+    private func finish() {
+        settle?.cancel()
+        model?.endGesture(as: "Change Background")
     }
 }
 
