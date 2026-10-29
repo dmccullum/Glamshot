@@ -4,8 +4,58 @@ import Foundation
 public enum FileNaming {
     public static let defaultTemplate = "{domain} — {size}"
 
-    /// The tokens a template can use, for Settings.
-    public static let tokens = ["{domain}", "{title}", "{size}", "{dimensions}", "{frame}", "{date}"]
+    /// What a template can fill in. Settings shows each as a chip; the template stores “{domain}”.
+    public enum Token: String, CaseIterable, Sendable {
+        case domain, title, size, dimensions, frame, date
+
+        public var placeholder: String { "{\(rawValue)}" }
+
+        public var title: String {
+            switch self {
+            case .domain: "Domain"
+            case .title: "Page Title"
+            case .size: "Size"
+            case .dimensions: "Dimensions"
+            case .frame: "Frame"
+            case .date: "Date"
+            }
+        }
+    }
+
+    /// A run of typed text or a token, in template order.
+    public enum Part: Equatable, Sendable {
+        case text(String)
+        case token(Token)
+    }
+
+    /// Splits a template into text and tokens. Braces that don't name a token stay text.
+    public static func parts(of template: String) -> [Part] {
+        var parts: [Part] = []
+        var text = ""
+        var rest = Substring(template)
+        while !rest.isEmpty {
+            if rest.first == "{", let close = rest.firstIndex(of: "}"),
+               let token = Token(rawValue: String(rest[rest.index(after: rest.startIndex)..<close])) {
+                if !text.isEmpty { parts.append(.text(text)); text = "" }
+                parts.append(.token(token))
+                rest = rest[rest.index(after: close)...]
+            } else {
+                text.append(rest.removeFirst())
+            }
+        }
+        if !text.isEmpty { parts.append(.text(text)) }
+        return parts
+    }
+
+    /// Joins parts back into a template, merging neighbouring text.
+    public static func template(from parts: [Part]) -> String {
+        parts.map { part in
+            switch part {
+            case .text(let text): text
+            case .token(let token): token.placeholder
+            }
+        }.joined()
+    }
 
     public struct Context: Sendable {
         public var url: URL?

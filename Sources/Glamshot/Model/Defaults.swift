@@ -12,7 +12,9 @@ final class Defaults {
 
     var capture: CaptureOptions { didSet { save(capture, "capture") } }
     var look: Look { didSet { save(look, "look") } }
-    var customPresets: [SizePreset] { didSet { save(customPresets, "customPresets") } }
+    /// Every size in the Size menu, built-in and the person's own, in order. Any of them can be
+    /// edited or deleted; Restore Built-In Sizes brings the built-ins back.
+    var presets: [SizePreset] { didSet { save(presets, "presets") } }
     var fileNameTemplate: String { didSet { store.set(fileNameTemplate, forKey: "fileNameTemplate") } }
     var format: ImageFormat { didSet { store.set(format.rawValue, forKey: "format") } }
     var jpegQuality: Double { didSet { store.set(jpegQuality, forKey: "jpegQuality") } }
@@ -25,7 +27,8 @@ final class Defaults {
     private init() {
         capture = Self.load("capture", from: store) ?? CaptureOptions()
         look = Self.load("look", from: store) ?? .standard
-        customPresets = Self.load("customPresets", from: store) ?? []
+        // Sizes saved before built-ins were editable were only the person's own.
+        presets = Self.load("presets", from: store) ?? SizePreset.builtIns + (Self.load("customPresets", from: store) ?? [])
         fileNameTemplate = store.string(forKey: "fileNameTemplate") ?? FileNaming.defaultTemplate
         format = store.string(forKey: "format").flatMap(ImageFormat.init(rawValue:)) ?? .png
         jpegQuality = store.object(forKey: "jpegQuality") as? Double ?? 0.9
@@ -35,7 +38,20 @@ final class Defaults {
         customSize = CGSize(width: custom.first ?? 1440, height: custom.last ?? 900)
     }
 
-    var allPresets: [SizePreset] { SizePreset.builtIns + customPresets }
+    /// Whether a built-in size is missing or edited.
+    var builtInsChanged: Bool {
+        SizePreset.builtIns.contains { builtIn in presets.first { $0.id == builtIn.id } != builtIn }
+    }
+
+    /// Puts every built-in size back as shipped, each group in its usual order, keeping the
+    /// person's own sizes after the built-ins in their group.
+    func restoreBuiltInSizes() {
+        let builtInIDs = Set(SizePreset.builtIns.map(\.id))
+        let own = presets.filter { !builtInIDs.contains($0.id) }
+        presets = SizePreset.Group.allCases.flatMap { group in
+            SizePreset.builtIns.filter { $0.group == group } + own.filter { $0.group == group }
+        }
+    }
 
     private func save<T: Encodable>(_ value: T, _ key: String) {
         store.set(try? JSONEncoder().encode(value), forKey: key)

@@ -150,7 +150,7 @@ struct GlamshotCommands: Commands {
             Menu("Size") {
                 Button("Custom") { model?.chooseCustomSize() }
                 Divider()
-                ForEach(Defaults.shared.allPresets) { preset in
+                ForEach(Defaults.shared.presets) { preset in
                     Button(preset.name) { model?.choose(preset) }
                 }
             }

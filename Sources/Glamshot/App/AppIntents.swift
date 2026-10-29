@@ -29,17 +29,17 @@ struct SizeEntity: AppEntity {
 struct SizeQuery: EntityStringQuery {
     @MainActor
     func entities(for identifiers: [SizeEntity.ID]) async throws -> [SizeEntity] {
-        Defaults.shared.allPresets.filter { identifiers.contains($0.id) }.map(SizeEntity.init)
+        Defaults.shared.presets.filter { identifiers.contains($0.id) }.map(SizeEntity.init)
     }
 
     @MainActor
     func entities(matching string: String) async throws -> [SizeEntity] {
-        Defaults.shared.allPresets.filter { $0.name.localizedStandardContains(string) }.map(SizeEntity.init)
+        Defaults.shared.presets.filter { $0.name.localizedStandardContains(string) }.map(SizeEntity.init)
     }
 
     @MainActor
     func suggestedEntities() async throws -> [SizeEntity] {
-        Defaults.shared.allPresets.map(SizeEntity.init)
+        Defaults.shared.presets.map(SizeEntity.init)
     }
 }
 
@@ -68,7 +68,7 @@ struct TakeGlamshotIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> {
         let defaults = Defaults.shared
-        let preset = size.flatMap { entity in defaults.allPresets.first { $0.id == entity.id } } ?? .macBookPro14
+        let preset = size.flatMap { entity in defaults.presets.first { $0.id == entity.id } } ?? .macBookPro14
         let chosenLook = defaults.look
         var options = defaults.capture
         options.apply(preset)

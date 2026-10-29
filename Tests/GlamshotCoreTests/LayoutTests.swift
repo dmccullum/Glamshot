@@ -174,6 +174,14 @@ struct FileNamingTests {
         let context = FileNaming.Context(url: nil, sizeName: "", width: 1, height: 1)
         #expect(FileNaming.name("{domain} — {size}", context) == "Glamshot")
     }
+
+    @Test func templateSplitsIntoTextAndTokens() {
+        let parts = FileNaming.parts(of: "{domain} — {size} {nope}{date}")
+        #expect(parts == [.token(.domain), .text(" — "), .token(.size), .text(" {nope}"), .token(.date)])
+        #expect(FileNaming.template(from: parts) == "{domain} — {size} {nope}{date}")
+        #expect(FileNaming.parts(of: "") == [])
+        #expect(FileNaming.parts(of: "{") == [.text("{")])
+    }
 }
 
 @Suite("Capture options")
