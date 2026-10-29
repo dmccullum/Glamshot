@@ -64,7 +64,7 @@ Glamshot.app/Contents/MacOS/Glamshot --capture https://example.com out.png \
 
 ## Building
 
-Requires macOS 26 and Xcode 26. Glamshot builds against two packages checked out next to this repository: DMKit, the shared components of the author's Mac apps, and [Undertone](https://github.com/dmccullum/Undertone)'s `UndertoneKit`.
+Requires macOS 26 and Xcode 26. Glamshot builds against two packages that Swift Package Manager fetches from GitHub: [DMKit](https://github.com/dmccullum/DMKit), the shared components of the author's Mac apps, and [Undertone](https://github.com/dmccullum/Undertone)'s `UndertoneKit`.
 
 ```sh
 swift build
