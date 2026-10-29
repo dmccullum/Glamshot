@@ -30,6 +30,27 @@ public enum ChromeMetrics {
         toolbarHeight + (showsTabBar ? tabBarHeight : 0)
     }
 
+    /// The chrome above the page for a Safari device. Safari on iPhone keeps its address bar at
+    /// the bottom, floating over the page, so only the status bar takes room.
+    public static func chromeHeight(for safari: SafariOptions) -> CGFloat {
+        switch safari.device {
+        case .iPhone: iPhoneStatusBarHeight
+        case .iPad: iPadStatusBarHeight + iPadToolbarHeight + (safari.showsTabBar ? tabBarHeight : 0)
+        case .mac, .automatic: chromeHeight(showsTabBar: safari.showsTabBar)
+        }
+    }
+
+    // Safari on iPhone (iOS 26) and iPad (iPadOS 26), in points.
+    public static let iPhoneStatusBarHeight: CGFloat = 54
+    public static let iPhoneAddressHeight: CGFloat = 48
+    public static let iPhoneAddressInset: CGFloat = 14
+    /// From the bottom of the screen to the bottom of the address bar, above the home indicator.
+    public static let iPhoneAddressBottom: CGFloat = 30
+    public static let iPhoneScreenRadius: CGFloat = 52
+    public static let iPadStatusBarHeight: CGFloat = 24
+    public static let iPadToolbarHeight: CGFloat = 50
+    public static let iPadScreenRadius: CGFloat = 18
+
     /// The macOS 26 menu bar.
     public static let menuBarHeight: CGFloat = 24
 }

@@ -9,6 +9,7 @@ import WebKit
 struct CanvasView: View {
     @Bindable var model: ShootModel
     @State private var isDropTargeted = false
+    @State private var isEditingAddress = false
 
     /// The full page's height in points, when one has been measured.
     private var fullPageHeight: CGFloat? {
@@ -17,7 +18,8 @@ struct CanvasView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let layout = FrameLayout.make(output: model.capture.outputSize, look: model.look, pageHeight: fullPageHeight)
+            let look = model.effectiveLook
+            let layout = FrameLayout.make(output: model.capture.outputSize, look: look, pageHeight: fullPageHeight)
             let available = CGSize(width: max(proxy.size.width - 48, 1), height: max(proxy.size.height - 48, 1))
             let fit = min(available.width / layout.canvasSize.width, available.height / layout.canvasSize.height, 1)
             let scale = model.zoom == .actual ? 1 : fit
@@ -25,7 +27,7 @@ struct CanvasView: View {
 
             ScrollView([.horizontal, .vertical]) {
                 ZStack(alignment: .topLeading) {
-                    ShotView(layout: layout, look: model.look, context: model.frameContext) {
+                    ShotView(layout: layout, look: look, context: model.frameContext, drawsPageOverlay: false) {
                         if model.capture.fullPage, let preview = model.fullPagePreview {
                             Image(decorative: preview.image, scale: 1).resizable()
                         } else {
@@ -37,7 +39,25 @@ struct CanvasView: View {
                     .allowsHitTesting(false)
 
                     if !(model.capture.fullPage && model.fullPagePreview != nil) {
-                        livePage(layout: layout, scale: scale)
+                        livePage(layout: layout, look: look, scale: scale)
+                    }
+                    if look.window == .safari, look.safari.device == .iPhone {
+                        // Above the live page, as Safari's bar floats over it.
+                        PhoneAddressBar(options: look.safari, isDark: ShotView<EmptyView>.chromeIsDark(look: look, context: model.frameContext),
+                                        context: model.frameContext, width: layout.pageRect.width)
+                            .frame(width: layout.pageRect.width, height: layout.pageRect.height)
+                            .scaleEffect(scale, anchor: .topLeading)
+                            .frame(width: layout.pageRect.width * scale, height: layout.pageRect.height * scale, alignment: .topLeading)
+                            .offset(x: layout.pageRect.minX * scale, y: layout.pageRect.minY * scale)
+                    }
+                    if look.window == .safari, look.safari.address != .hidden, let rect = addressRect(layout: layout, look: look) {
+                        Color.clear
+                            .contentShape(Capsule())
+                            .frame(width: rect.width * scale, height: rect.height * scale)
+                            .offset(x: rect.minX * scale, y: rect.minY * scale)
+                            .onTapGesture { isEditingAddress = true }
+                            .help("Edit the Address Shown in the Window")
+                            .popover(isPresented: $isEditingAddress) { AddressEditor(model: model) }
                     }
                     if model.look.backdrop == .desktop {
                         DesktopWindowHandles(model: model, layout: layout, scale: scale)
@@ -51,6 +71,7 @@ struct CanvasView: View {
             }
             .scrollDisabled(model.zoom == .fit)
             .overlay(alignment: .top) { fullPageCapsule.padding(.top, 12) }
+            .overlay(alignment: .bottom) { captureModeBar.padding(.bottom, DMLayout.overlayMargin) }
         }
         .background(Color(nsColor: .underPageBackgroundColor))
         .dropTarget(for: URL.self, isTargeted: $isDropTargeted) { urls, _ in
@@ -60,12 +81,31 @@ struct CanvasView: View {
         }
     }
 
-    private func livePage(layout: FrameLayout, scale: CGFloat) -> some View {
+    /// Where the address field sits in the window mockup, for clicking to edit it.
+    private func addressRect(layout: FrameLayout, look: Look) -> CGRect? {
+        let window = layout.windowRect
+        switch look.safari.device {
+        case .mac, .automatic:
+            guard window.width >= 560 else { return nil }
+            let width = min(max(window.width * ChromeMetrics.addressWidthFraction, ChromeMetrics.addressMinimumWidth), ChromeMetrics.addressMaximumWidth)
+            return CGRect(x: window.midX - width / 2, y: window.minY + (ChromeMetrics.toolbarHeight - ChromeMetrics.addressHeight) / 2,
+                          width: width, height: ChromeMetrics.addressHeight)
+        case .iPad:
+            let width = min(max(window.width * 0.45, 220), 560)
+            return CGRect(x: window.midX - width / 2, y: window.minY + ChromeMetrics.iPadStatusBarHeight + 7, width: width, height: 36)
+        case .iPhone:
+            let page = layout.pageRect
+            let height = look.safari.phoneBar == .full ? ChromeMetrics.iPhoneAddressHeight : 30
+            let width = look.safari.phoneBar == .full ? page.width - 160 : 160
+            return CGRect(x: page.midX - width / 2, y: page.maxY - height - (look.safari.phoneBar == .full ? 27 : 23), width: width, height: height)
+        }
+    }
+
+    private func livePage(layout: FrameLayout, look: Look, scale: CGFloat) -> some View {
         let rect = layout.pageRect
-        let radius = (model.look.window == .safari ? ChromeMetrics.cornerRadius
-                      : model.look.backdrop == .none ? 0 : model.look.canvas.cornerRadius) * scale
+        let radius = ShotView<EmptyView>.cornerRadius(look: look, layout: layout) * scale
         return WebHost(webView: model.webView, viewport: model.pageSize, bottomCornerRadius: radius,
-                       topCornerRadius: model.look.window == .safari ? 0 : radius)
+                       topCornerRadius: look.window == .safari ? 0 : radius)
             .frame(width: rect.width * scale, height: min(rect.height, model.pageSize.height) * scale)
             .offset(x: rect.minX * scale, y: rect.minY * scale)
             .opacity(model.hasPage ? 1 : 0)
@@ -76,6 +116,27 @@ struct CanvasView: View {
                         .offset(x: rect.minX * scale, y: rect.minY * scale)
                 }
             }
+    }
+
+    /// One screen or the whole page: the choice that decides most of the rest, so it floats over
+    /// the canvas where it's always in reach.
+    private var captureModeBar: some View {
+        FloatingBar {
+            Picker("Capture", selection: Binding(
+                get: { model.capture.fullPage },
+                set: { value in model.setCapture(as: value ? "Turn On Full Page" : "Turn Off Full Page") { $0.fullPage = value } }
+            )) {
+                Text("Screen").tag(false)
+                Text("Full Page").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .disabled(model.look.backdrop == .desktop)
+            .help(model.look.backdrop == .desktop
+                  ? "A desktop shows one screen. Turn off the desktop backdrop for a full page."
+                  : "One screen at the output size, or the page’s full length (⌥⌘F)")
+        }
     }
 
     @ViewBuilder private var fullPageCapsule: some View {
@@ -205,5 +266,38 @@ struct CanvasMenu: View {
         Button("Export Sizes…") { model.chooseExportSizes() }
         Divider()
         Button("Reload Page") { model.reload() }
+    }
+}
+
+/// Edits the address the window mockup shows.
+struct AddressEditor: View {
+    @Bindable var model: ShootModel
+    @State private var text = ""
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Address Shown in the Window").font(.headline)
+            TextField("yourbrand.com", text: $text)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 260)
+                .onSubmit(commit)
+            HStack {
+                Button("Use Page’s Address") {
+                    model.setLook(as: "Show Page’s Address") { $0.safari.address = .domain }
+                    dismiss()
+                }
+                Spacer()
+                Button("Done", action: commit).keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(14)
+        .onAppear { text = model.customAddress.isEmpty ? model.frameContext.address(.domain) : model.customAddress }
+    }
+
+    private func commit() {
+        model.customAddress = text.trimmingCharacters(in: .whitespaces)
+        model.setLook(as: "Change Address") { $0.safari.address = .custom }
+        dismiss()
     }
 }

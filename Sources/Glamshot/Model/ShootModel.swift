@@ -81,6 +81,7 @@ final class ShootModel {
         webView.customUserAgent = capture.userAgent.string
         webView.appearance = NSAppearance(named: capture.appearance == .dark ? .darkAqua : .aqua)
         if let saved = UserDefaults.standard.stringArray(forKey: "exportSizeIDs") { exportSizeIDs = Set(saved) }
+        if rememberingSettings { customAddress = UserDefaults.standard.string(forKey: "customAddress") ?? "" }
         webView.navigationDelegate = navigation
         navigation.model = self
         observe()
@@ -182,14 +183,19 @@ final class ShootModel {
 
     /// The preset matching the output size, if any.
     var currentPreset: SizePreset? {
-        Defaults.shared.allPresets.first { capture.matches($0) }
+        let matches = Defaults.shared.allPresets.filter { capture.matches($0) }
+        // Two devices can share a size (iPhone 17 and 17 Pro); keep the one that was picked.
+        return matches.first { $0.id == chosenPresetID } ?? matches.first
     }
+
+    @ObservationIgnored private var chosenPresetID: String?
 
     var sizeName: String {
         currentPreset?.name ?? "\(capture.width) × \(capture.height)"
     }
 
     func choose(_ preset: SizePreset) {
+        chosenPresetID = preset.id
         setCapture(as: "Choose \(preset.name)") { $0.apply(preset) }
     }
 
@@ -254,7 +260,7 @@ final class ShootModel {
             webView.appearance = NSAppearance(named: capture.appearance == .dark ? .darkAqua : .aqua)
         }
         if capture.hiddenSelectors != old.hiddenSelectors { applyHiddenSelectors() }
-        if capture.outputSize != old.outputSize || capture.zoom != old.zoom { applyViewport() }
+        if capture.outputSize != old.outputSize || capture.zoom != old.zoom || capture.fullPage != old.fullPage { applyViewport() }
         if capture.fullPage != old.fullPage || capture.outputSize != old.outputSize || capture.zoom != old.zoom
             || capture.scale != old.scale {
             fullPagePreview = nil
@@ -273,11 +279,16 @@ final class ShootModel {
         if remembersSettings { Defaults.shared.look = look }
     }
 
+    /// The look with its Safari device worked out for this output: iPhone chrome on iPhone sizes.
+    var effectiveLook: Look { look.resolved(for: capture.outputSize, fullPage: capture.fullPage) }
+
     /// The page's room in points: the output minus the window chrome and the backdrop.
     var pageSize: CGSize { pageSize(for: look) }
 
     func pageSize(for look: Look, output: CGSize? = nil) -> CGSize {
-        FrameLayout.pageSize(output: output ?? capture.outputSize, look: look)
+        let output = output ?? capture.outputSize
+        return FrameLayout.pageSize(output: output, look: look.resolved(for: output, fullPage: capture.fullPage),
+                                    fullPage: capture.fullPage)
     }
 
     /// The page's layout size in CSS pixels: its room divided by the zoom.
@@ -358,7 +369,8 @@ final class ShootModel {
         options.delay = Defaults.shared.waitAfterLoading
 
         // Lay the page out in the room this look leaves in this output, then put the view back.
-        let room = pageSize(for: look, output: options.outputSize)
+        let room = FrameLayout.pageSize(output: options.outputSize, look: look.resolved(for: options.outputSize, fullPage: options.fullPage),
+                                        fullPage: options.fullPage)
         let original = (size: webView.frame.size, zoom: webView.pageZoom)
         webView.setFrameSize(room)
         webView.pageZoom = options.zoom
@@ -368,14 +380,33 @@ final class ShootModel {
         }
         let page = try await photographer.capture(options)
         let image = try await ShotRenderer.render(
-            page: page, look: look, output: options.outputSize, fullPage: options.fullPage, context: frameContext
+            page: page, look: look.resolved(for: options.outputSize, fullPage: options.fullPage), output: options.outputSize,
+            fullPage: options.fullPage, context: frameContext
         )
         return RenderedShot(image: image, scale: options.scale, wasCut: page.wasCut)
     }
 
     var frameContext: FrameContext {
-        FrameContext(url: url, title: title, pageIsDark: pageIsDark)
+        FrameContext(url: url, title: title, pageIsDark: pageIsDark, customAddress: customAddress)
     }
+
+    /// The address a Custom address field shows, such as a production domain over a staging page.
+    var customAddress = "" {
+        didSet { if remembersSettings { UserDefaults.standard.set(customAddress, forKey: "customAddress") } }
+    }
+
+    /// The backdrop the Backdrop switch turns back on.
+    var lastBackdrop: Backdrop {
+        look.backdrop != .none ? look.backdrop : (Backdrop(rawValue: UserDefaults.standard.string(forKey: "lastBackdrop") ?? "") ?? .canvas)
+    }
+
+    func setBackdrop(_ backdrop: Backdrop) {
+        if backdrop != .none { UserDefaults.standard.set(backdrop.rawValue, forKey: "lastBackdrop") }
+        setLook(as: backdrop == .none ? "Turn Off Backdrop" : "Change Backdrop") { $0.backdrop = backdrop }
+    }
+
+    /// Bumped to start editing the address shown in the window mockup.
+    var addressEditRequest = 0
 
     func fileName(for look: Look? = nil, sizeName: String? = nil, capture: CaptureOptions? = nil) -> String {
         let options = capture ?? self.capture

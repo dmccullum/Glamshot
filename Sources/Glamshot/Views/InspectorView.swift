@@ -60,7 +60,14 @@ private struct OutputCard: View {
             HStack(spacing: 6) {
                 TextField("Width", text: $width).onSubmit(commit)
                 Text("×").foregroundStyle(.secondary)
-                TextField("Height", text: $height).onSubmit(commit)
+                if model.capture.fullPage {
+                    // The page sets the height.
+                    Text("Page Length")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    TextField("Height", text: $height).onSubmit(commit)
+                }
                 Text("pt").foregroundStyle(.secondary)
             }
             .textFieldStyle(.roundedBorder)
@@ -72,17 +79,6 @@ private struct OutputCard: View {
                     set: { value in model.setCapture(as: "Change Scale") { $0.scale = value } }
                 ), segments: [1, 2, 3].map { .init(value: $0, title: "\($0)×") })
             }
-
-            StackedControl("Height") {
-                FilledSegments("Height", selection: Binding(
-                    get: { model.capture.fullPage && !isDesktop },
-                    set: { value in model.setCapture(as: value ? "Turn On Full Page" : "Turn Off Full Page") { $0.fullPage = value } }
-                ), segments: [
-                    .init(value: false, title: "Screen", help: "The image is the output size"),
-                    .init(value: true, title: "Full Page", help: "The image grows to the page’s full length")
-                ])
-            }
-            .disabled(isDesktop)
 
             Text("Saves \(outputPixels)")
                 .font(.callout)
@@ -158,11 +154,13 @@ private struct WindowCard: View {
     let model: ShootModel
 
     private var isOn: Bool { model.look.window == .safari }
+    /// The device actually drawn, with Automatic worked out from the output size.
+    private var device: SafariOptions.Device { model.effectiveLook.safari.device }
 
     var body: some View {
-        InspectorCard("Safari Window", systemImage: "macwindow", isActive: isOn) {
+        InspectorCard("Safari Window", systemImage: "macwindow", isActive: isOn && !model.capture.fullPage) {
             Toggle("Safari Window", isOn: Binding(
-                get: { isOn },
+                get: { isOn && !model.capture.fullPage },
                 set: { value in
                     model.setLook(as: value ? "Show Safari Window" : "Hide Safari Window") { $0.window = value ? .safari : .none }
                 }
@@ -170,12 +168,38 @@ private struct WindowCard: View {
             .toggleStyle(.switch)
             .labelsHidden()
             .controlSize(.small)
+            .disabled(model.capture.fullPage)
         } content: {
-            if isOn {
-                StackedControl("Toolbar") {
-                    FilledSegments("Toolbar", selection: Binding(
+            if model.capture.fullPage {
+                Text("Full-page captures have no window, since no browser shows a whole page at once.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if isOn {
+                StackedControl("Device") {
+                    FilledSegments("Device", selection: Binding(
+                        get: { model.look.safari.device },
+                        set: { value in model.setLook(as: "Change Safari Device") { $0.safari.device = value } }
+                    ), segments: SafariOptions.Device.allCases.map {
+                        .init(value: $0, title: $0 == .automatic ? "Auto" : $0.title,
+                              help: $0 == .automatic ? "Follows the output size: iPhone sizes get Safari on iPhone" : nil)
+                    })
+                }
+                if device == .iPhone {
+                    StackedControl("Address Bar") {
+                        FilledSegments("Address Bar", selection: Binding(
+                            get: { model.look.safari.phoneBar },
+                            set: { value in model.setLook(as: "Change Address Bar") { $0.safari.phoneBar = value } }
+                        ), segments: [
+                            .init(value: SafariOptions.PhoneBar.full, title: "Full"),
+                            .init(value: SafariOptions.PhoneBar.minimized, title: "Minimized", help: "As Safari shows it after you scroll")
+                        ])
+                    }
+                }
+                StackedControl("Appearance") {
+                    FilledSegments("Appearance", selection: Binding(
                         get: { model.look.safari.appearance },
-                        set: { value in model.setLook(as: "Change Toolbar Appearance") { $0.safari.appearance = value } }
+                        set: { value in model.setLook(as: "Change Window Appearance") { $0.safari.appearance = value } }
                     ), segments: SafariOptions.Appearance.allCases.map { .init(value: $0, title: $0.title) })
                 }
                 StackedControl("Address") {
@@ -184,12 +208,41 @@ private struct WindowCard: View {
                         set: { value in model.setLook(as: "Change Address") { $0.safari.address = value } }
                     ), segments: SafariOptions.Address.allCases.map { .init(value: $0, title: $0.title) })
                 }
-                SwitchRow("Tab Bar", isOn: Binding(
-                    get: { model.look.safari.showsTabBar },
-                    set: { value in model.setLook(as: value ? "Show Tab Bar" : "Hide Tab Bar") { $0.safari.showsTabBar = value } }
-                ))
+                if model.look.safari.address == .custom {
+                    CustomAddressField(model: model)
+                }
+                if device != .iPhone {
+                    SwitchRow("Tab Bar", isOn: Binding(
+                        get: { model.look.safari.showsTabBar },
+                        set: { value in model.setLook(as: value ? "Show Tab Bar" : "Hide Tab Bar") { $0.safari.showsTabBar = value } }
+                    ))
+                }
+                if model.look.backdrop == .none {
+                    // With no backdrop the shadow is the window's, on a transparent image.
+                    InspectorSlider("Shadow", value: model.look.shadow, in: 0...1, default: 0.7, format: .percent) { value in
+                        model.beginGesture()
+                        model.look.shadow = value
+                    } commit: {
+                        model.endGesture(as: "Change Shadow")
+                    }
+                }
             }
         }
+    }
+}
+
+/// The text a Custom address shows; it belongs to the window, not the Look.
+private struct CustomAddressField: View {
+    @Bindable var model: ShootModel
+    @State private var text = ""
+
+    var body: some View {
+        TextField("yourbrand.com", text: $text)
+            .textFieldStyle(.roundedBorder)
+            .onSubmit { model.customAddress = text.trimmingCharacters(in: .whitespaces) }
+            .onAppear { text = model.customAddress }
+            .onChange(of: model.customAddress) { text = model.customAddress }
+            .help("Shown in the window instead of the page’s address. Click the address in the window to edit it there too.")
     }
 }
 
@@ -198,25 +251,35 @@ private struct WindowCard: View {
 private struct BackdropCard: View {
     let model: ShootModel
 
-    var body: some View {
-        InspectorCard("Backdrop", systemImage: "photo.on.rectangle") {
-            EmptyView()
-        } content: {
-            FilledSegments("Backdrop", selection: Binding(
-                get: { model.look.backdrop },
-                set: { value in model.setLook(as: "Change Backdrop") { $0.backdrop = value } }
-            ), segments: Backdrop.allCases.map { .init(value: $0, title: $0.title) })
+    private var isOn: Bool { model.look.backdrop != .none }
 
-            switch model.look.backdrop {
-            case .none:
-                shadowSlider
-            case .canvas:
+    var body: some View {
+        InspectorCard("Backdrop", systemImage: "photo.on.rectangle", isActive: isOn) {
+            Toggle("Backdrop", isOn: Binding(
+                get: { isOn },
+                set: { value in model.setBackdrop(value ? model.lastBackdrop : .none) }
+            ))
+            .toggleStyle(.switch)
+            .labelsHidden()
+            .controlSize(.small)
+        } content: {
+            if isOn {
+                FilledSegments("Backdrop", selection: Binding(
+                    get: { model.look.backdrop },
+                    set: { value in model.setBackdrop(value) }
+                ), segments: [
+                    .init(value: Backdrop.canvas, title: "Canvas", help: "A background with padding around the window"),
+                    .init(value: Backdrop.desktop, title: "Desktop",
+                          help: model.capture.fullPage ? "Not available for full-page captures" : "A Mac desktop with a menu bar")
+                ])
+                .disabled(model.capture.fullPage && model.look.backdrop != .desktop)
                 BackgroundPicker(model: model)
-                canvasControls
-                shadowSlider
-            case .desktop:
-                BackgroundPicker(model: model)
-                desktopControls
+                if model.look.backdrop == .canvas {
+                    canvasControls
+                    shadowSlider
+                } else {
+                    desktopControls
+                }
             }
         }
     }

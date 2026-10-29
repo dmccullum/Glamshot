@@ -5,8 +5,7 @@ import SwiftUI
 struct SafariChromeView: View {
     let options: SafariOptions
     let isDark: Bool
-    let url: URL?
-    let title: String
+    let context: FrameContext
     let width: CGFloat
 
     private var palette: ChromePalette { isDark ? .dark : .light }
@@ -57,7 +56,7 @@ struct SafariChromeView: View {
     @ViewBuilder private var addressField: some View {
         if options.address != .hidden, width >= 560 {
             HStack(spacing: 6) {
-                if url?.scheme == "https" {
+                if context.url?.scheme == "https" {
                     Image(systemName: "lock.fill").font(.system(size: 10, weight: .semibold)).foregroundStyle(palette.secondary)
                 }
                 Text(addressText)
@@ -78,19 +77,12 @@ struct SafariChromeView: View {
         }
     }
 
-    private var addressText: String {
-        guard let url else { return "" }
-        switch options.address {
-        case .domain: return FileNaming.domain(of: url) ?? url.lastPathComponent
-        case .fullURL: return url.absoluteString
-        case .hidden: return ""
-        }
-    }
+    private var addressText: String { context.address(options.address) }
 
     private var tabBar: some View {
         HStack(spacing: 6) {
             Image(systemName: "globe").font(.system(size: 11)).foregroundStyle(palette.secondary)
-            Text(title.isEmpty ? (url.flatMap(FileNaming.domain(of:)) ?? "Untitled") : title)
+            Text(context.title.isEmpty ? (context.domain.isEmpty ? "Untitled" : context.domain) : context.title)
                 .font(.system(size: 12))
                 .foregroundStyle(palette.primary)
                 .lineLimit(1)

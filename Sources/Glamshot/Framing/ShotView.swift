@@ -9,6 +9,23 @@ struct FrameContext {
     var url: URL?
     var title: String
     var pageIsDark: Bool
+    /// The Custom address text.
+    var customAddress: String = ""
+
+    /// What the address field shows for an address setting.
+    func address(_ setting: SafariOptions.Address) -> String {
+        switch setting {
+        case .hidden: return ""
+        case .custom: return customAddress
+        case .fullURL: return url?.absoluteString ?? ""
+        case .domain: return url.flatMap(FileNaming.domain(of:)) ?? url?.lastPathComponent ?? ""
+        }
+    }
+
+    /// The domain for the minimized iPhone pill and tab titles.
+    var domain: String {
+        customAddress.isEmpty ? (url.flatMap(FileNaming.domain(of:)) ?? "") : customAddress
+    }
 }
 
 /// A finished shot: backdrop, window and page, laid out in points. The window shows it scaled
@@ -17,9 +34,13 @@ struct ShotView<Page: View>: View {
     let layout: FrameLayout
     let look: Look
     let context: FrameContext
+    /// False when the window draws the live page itself and lays the iPhone address bar over it.
+    var drawsPageOverlay = true
     @ViewBuilder let page: () -> Page
 
-    private var chromeIsDark: Bool {
+    private var chromeIsDark: Bool { Self.chromeIsDark(look: look, context: context) }
+
+    static func chromeIsDark(look: Look, context: FrameContext) -> Bool {
         switch look.safari.appearance {
         case .light: false
         case .dark: true
@@ -35,11 +56,21 @@ struct ShotView<Page: View>: View {
         }
     }
 
-    private var cornerRadius: CGFloat {
+    private var cornerRadius: CGFloat { Self.cornerRadius(look: look, layout: layout) }
+
+    /// A Mac window is always rounded; an iPhone or iPad screen only when it sits inside the image,
+    /// so a full-size screenshot keeps square corners for a device mockup.
+    static func cornerRadius(look: Look, layout: FrameLayout) -> CGFloat {
+        let isInset = layout.windowRect != CGRect(origin: .zero, size: layout.canvasSize)
         switch (look.window, look.backdrop) {
-        case (.safari, _): ChromeMetrics.cornerRadius
-        case (.none, .none): 0
-        case (.none, _): look.canvas.cornerRadius
+        case (.safari, _):
+            switch look.safari.device {
+            case .iPhone: return isInset ? ChromeMetrics.iPhoneScreenRadius : 0
+            case .iPad: return isInset ? ChromeMetrics.iPadScreenRadius : 0
+            case .mac, .automatic: return ChromeMetrics.cornerRadius
+            }
+        case (.none, .none): return 0
+        case (.none, _): return look.canvas.cornerRadius
         }
     }
 
@@ -68,16 +99,27 @@ struct ShotView<Page: View>: View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         return VStack(spacing: 0) {
             if look.window == .safari {
-                SafariChromeView(options: look.safari, isDark: chromeIsDark, url: context.url,
-                                 title: context.title, width: layout.windowRect.width)
+                switch look.safari.device {
+                case .iPhone:
+                    StatusBarView(device: .iPhone, isDark: chromeIsDark, width: layout.windowRect.width)
+                case .iPad:
+                    IPadSafariChrome(options: look.safari, isDark: chromeIsDark, context: context, width: layout.windowRect.width)
+                case .mac, .automatic:
+                    SafariChromeView(options: look.safari, isDark: chromeIsDark, context: context, width: layout.windowRect.width)
+                }
             }
             page()
                 .frame(width: layout.pageRect.width, height: layout.pageRect.height)
                 .clipped()
+                .overlay {
+                    if drawsPageOverlay, look.window == .safari, look.safari.device == .iPhone {
+                        PhoneAddressBar(options: look.safari, isDark: chromeIsDark, context: context, width: layout.pageRect.width)
+                    }
+                }
         }
         .clipShape(shape)
         .overlay {
-            if look.window == .safari {
+            if look.window == .safari, look.safari.device == .mac {
                 shape.strokeBorder(chromeIsDark ? Color.white.opacity(0.14) : Color.black.opacity(0.12), lineWidth: 1)
             }
         }

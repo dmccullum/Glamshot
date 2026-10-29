@@ -194,7 +194,7 @@ struct GlamshotCommands: Commands {
             .disabled(model == nil)
             Picker("Backdrop", selection: Binding(
                 get: { model?.look.backdrop ?? .none },
-                set: { value in model?.setLook(as: "Change Backdrop") { $0.backdrop = value } }
+                set: { value in model?.setBackdrop(value) }
             )) {
                 ForEach(Backdrop.allCases, id: \.self) { Text($0.title).tag($0) }
             }

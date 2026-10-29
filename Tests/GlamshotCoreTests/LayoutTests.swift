@@ -51,13 +51,13 @@ struct FrameLayoutTests {
         #expect(layout.pageRect.height >= FrameLayout.minimumPageSize.height)
     }
 
-    @Test func fullPageGrowsTheHeightOnly() {
-        let look = Look(name: "Canvas", window: .safari, backdrop: .canvas)
+    @Test func fullPageWidthIsThePagesAndPaddingGoesAround() {
+        let look = Look(name: "Canvas", window: .none, backdrop: .canvas)
         let layout = FrameLayout.make(output: output, look: look, pageHeight: 8000)
         let padding = FrameLayout.automaticPadding(for: output)
-        #expect(layout.canvasSize.width == 1512)
-        #expect(layout.pageRect.height == 8000)
-        #expect(layout.canvasSize.height == 8000 + 52 + padding * 2)
+        #expect(layout.pageRect.size == CGSize(width: 1512, height: 8000))
+        #expect(layout.canvasSize == CGSize(width: 1512 + padding * 2, height: 8000 + padding * 2))
+        #expect(FrameLayout.pageSize(output: output, look: look, fullPage: true) == output)
     }
 
     @Test func desktopIsTheOutputAndTheWindowSitsBelowTheMenuBar() {
@@ -84,6 +84,28 @@ struct FrameLayoutTests {
         let small = FrameLayout.make(output: output, look: look)
         let large = FrameLayout.make(output: CGSize(width: 2560, height: 1440), look: look)
         #expect(large.windowRect.width > small.windowRect.width)
+    }
+}
+
+@Suite("Safari device")
+struct SafariDeviceTests {
+    @Test func automaticFollowsTheOutputSize() {
+        let options = SafariOptions()
+        #expect(options.resolvedDevice(for: CGSize(width: 402, height: 874)) == .iPhone)
+        #expect(options.resolvedDevice(for: CGSize(width: 1032, height: 1376)) == .iPad)
+        #expect(options.resolvedDevice(for: CGSize(width: 1512, height: 982)) == .mac)
+        #expect(options.resolvedDevice(for: CGSize(width: 1080, height: 1350)) == .mac)
+        #expect(options.resolvedDevice(for: CGSize(width: 360, height: 780)) == .iPhone)
+    }
+
+    @Test func aChosenDeviceWins() {
+        #expect(SafariOptions(device: .mac).resolvedDevice(for: CGSize(width: 402, height: 874)) == .mac)
+    }
+
+    @Test func iPhoneTakesOnlyTheStatusBar() {
+        let look = Look(name: "Phone", window: .safari, backdrop: .none, safari: SafariOptions(device: .iPhone), shadow: 0)
+        let layout = FrameLayout.make(output: CGSize(width: 402, height: 874), look: look)
+        #expect(layout.pageRect == CGRect(x: 0, y: ChromeMetrics.iPhoneStatusBarHeight, width: 402, height: 874 - ChromeMetrics.iPhoneStatusBarHeight))
     }
 }
 

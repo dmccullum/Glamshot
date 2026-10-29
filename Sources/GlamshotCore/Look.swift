@@ -37,6 +37,18 @@ public struct Look: Codable, Hashable, Identifiable, Sendable {
         self.shadow = shadow
     }
 
+    /// This look as drawn for an output: its Safari device worked out, and for a full page no
+    /// window and no desktop, since no browser shows a whole page at once.
+    public func resolved(for output: CGSize, fullPage: Bool = false) -> Look {
+        var look = self
+        look.safari.device = safari.resolvedDevice(for: output)
+        if fullPage {
+            look.window = .none
+            if look.backdrop == .desktop { look.backdrop = .canvas }
+        }
+        return look
+    }
+
     /// “Safari on Canvas”, “Bare Page”, for window subtitles.
     public var summary: String {
         let window = self.window == .safari ? "Safari" : "Page"
@@ -89,25 +101,65 @@ public struct SafariOptions: Codable, Hashable, Sendable {
     }
 
     public enum Address: String, Codable, CaseIterable, Sendable {
-        case domain, fullURL, hidden
+        /// `custom` shows the window's own text, such as a production domain over a staging page.
+        case domain, fullURL, custom, hidden
 
         public var title: String {
             switch self {
             case .domain: "Domain"
-            case .fullURL: "Full Address"
+            case .fullURL: "Full"
+            case .custom: "Custom"
             case .hidden: "Hidden"
             }
         }
     }
 
+    /// Which Safari to draw. Automatic follows the output size: iPhone sizes get Safari on
+    /// iPhone, iPad sizes Safari on iPad, everything else Safari on the Mac.
+    public enum Device: String, Codable, CaseIterable, Sendable {
+        case automatic, mac, iPad, iPhone
+
+        public var title: String {
+            switch self {
+            case .automatic: "Automatic"
+            case .mac: "Mac"
+            case .iPad: "iPad"
+            case .iPhone: "iPhone"
+            }
+        }
+    }
+
+    /// Safari on iPhone's address bar: full, or shrunk to the domain as it is after scrolling.
+    public enum PhoneBar: String, Codable, CaseIterable, Sendable {
+        case full, minimized
+
+        public var title: String { self == .full ? "Full" : "Minimized" }
+    }
+
+    public var device: Device = .automatic
+    public var phoneBar: PhoneBar = .full
     public var appearance: Appearance = .matchPage
     public var address: Address = .domain
     public var showsTabBar: Bool = false
 
-    public init(appearance: Appearance = .matchPage, address: Address = .domain, showsTabBar: Bool = false) {
+    public init(device: Device = .automatic, appearance: Appearance = .matchPage, address: Address = .domain, showsTabBar: Bool = false) {
+        self.device = device
         self.appearance = appearance
         self.address = address
         self.showsTabBar = showsTabBar
+    }
+
+    /// The device to draw for an output size: Automatic picks iPhone for phone-width outputs and
+    /// iPad for the iPad sizes.
+    public func resolvedDevice(for output: CGSize) -> Device {
+        guard device == .automatic else { return device }
+        let match = SizePreset.builtIns.first { CGFloat($0.width) == output.width && CGFloat($0.height) == output.height }
+        switch match?.group {
+        case .phone: return .iPhone
+        case .tablet: return .iPad
+        case .some: return .mac
+        case nil: return output.width <= 500 && output.height > output.width ? .iPhone : .mac
+        }
     }
 }
 
