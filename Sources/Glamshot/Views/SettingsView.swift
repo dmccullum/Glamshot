@@ -7,7 +7,6 @@ struct SettingsView: View {
         TabView {
             Tab("General", systemImage: "gearshape") { GeneralSettings() }
             Tab("Sizes", systemImage: "rectangle.dashed") { SizesSettings() }
-            Tab("Presets", systemImage: "sparkles") { LooksSettings() }
         }
         .frame(width: DMLayout.settingsWidth)
     }
@@ -99,43 +98,6 @@ private struct SizesSettings: View {
                     defaults.customPresets.append(SizePreset(name: "Custom \(defaults.customPresets.count + 1)", group: .custom,
                                                              width: 1440, height: 900, scale: 2))
                 }
-            }
-        }
-        .formStyle(.grouped)
-        .fixedSize(horizontal: false, vertical: true)
-    }
-}
-
-private struct LooksSettings: View {
-    @Bindable private var defaults = Defaults.shared
-
-    var body: some View {
-        Form {
-            Section("Built In") {
-                ForEach(Look.builtIns) { look in
-                    LabeledContent(look.name, value: look.summary)
-                }
-            }
-            Section("Your Presets") {
-                if defaults.customLooks.isEmpty {
-                    Text("Choose Save Preset… in a window’s inspector to keep its window, backdrop and background here.")
-                        .foregroundStyle(.secondary)
-                }
-                ForEach($defaults.customLooks) { $look in
-                    HStack {
-                        TextField("Name", text: $look.name).labelsHidden()
-                        Text(look.summary).foregroundStyle(.secondary)
-                        Button {
-                            defaults.customLooks.removeAll { $0.id == look.id }
-                        } label: {
-                            Label("Delete \(look.name)", systemImage: "minus.circle")
-                        }
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.borderless)
-                        .help("Delete “\(look.name)”")
-                    }
-                }
-                .onMove { defaults.customLooks.move(fromOffsets: $0, toOffset: $1) }
             }
         }
         .formStyle(.grouped)

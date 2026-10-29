@@ -13,7 +13,6 @@ struct InspectorView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: DMLayout.inspectorSpacing) {
-                LookCard(model: model)
                 OutputCard(model: model)
                 PageCard(model: model)
                 if !model.capture.fullPage {
@@ -22,28 +21,6 @@ struct InspectorView: View {
                 BackdropCard(model: model)
             }
             .padding(DMLayout.inspectorPadding)
-        }
-    }
-}
-
-// MARK: - Look
-
-/// The saved combinations of window and backdrop, in the card's header.
-private struct LookCard: View {
-    let model: ShootModel
-
-    var body: some View {
-        InspectorCard("Preset", systemImage: "sparkles") {
-            Menu {
-                ForEach(Defaults.shared.allLooks) { look in
-                    Toggle(look.name, isOn: Binding(get: { model.currentLookID == look.id }, set: { _ in model.apply(look) }))
-                }
-                Divider()
-                Button("Save Preset…") { model.isNamingLook = true }
-            } label: {
-                Text(model.currentLookID.flatMap { id in Defaults.shared.allLooks.first { $0.id == id }?.name } ?? "Custom")
-            }
-            .frame(maxWidth: 160)
         }
     }
 }

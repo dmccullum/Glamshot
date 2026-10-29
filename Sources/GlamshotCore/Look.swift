@@ -59,14 +59,8 @@ public struct Look: Codable, Hashable, Identifiable, Sendable {
         }
     }
 
-    public static let builtIns: [Look] = [
-        Look(id: "bare", name: "Bare Page", window: .none, backdrop: .none, shadow: 0),
-        Look(id: "safari", name: "Safari, Transparent", window: .safari, backdrop: .none),
-        Look(id: "safari-canvas", name: "Safari on Canvas", window: .safari, backdrop: .canvas),
-        Look(id: "page-canvas", name: "Page on Canvas", window: .none, backdrop: .canvas,
-             background: .gradient(name: "Tidal", seed: 0)),
-        Look(id: "desktop", name: "Desktop", window: .safari, backdrop: .desktop, background: .gradient(name: "Bloom", seed: 0))
-    ]
+    /// What a new window starts with: a Safari window, no backdrop.
+    public static let standard = Look(name: "Safari", window: .safari, backdrop: .none)
 }
 
 public enum WindowStyle: String, Codable, CaseIterable, Sendable {

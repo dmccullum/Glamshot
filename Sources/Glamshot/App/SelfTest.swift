@@ -141,7 +141,7 @@ enum SelfTest {
         hero.close()
 
         // The Shortcuts action's path: an off-screen shoot framed in a canvas Look.
-        let look = Look.builtIns.first { $0.id == "safari-canvas" }!
+        let look = Look(name: "Canvas", window: .safari, backdrop: .canvas)
         let options = CaptureOptions(width: 800, height: 600, scale: 2, delay: 0)
         if let shot = await attempt("headless shoot", {
             let shoot = try await HeadlessShoot(url: fixtures.appending(path: "bands.html"),

@@ -54,9 +54,6 @@ struct ContentView: View {
         .sheet(isPresented: $model.isEditingHiddenElements) {
             HideElementsSheet(model: model)
         }
-        .sheet(isPresented: $model.isNamingLook) {
-            SaveLookSheet(model: model)
-        }
         .alert(item: $model.alert) { alert in
             Alert(title: Text(alert.title), message: Text(alert.message))
         }

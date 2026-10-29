@@ -5,7 +5,7 @@ public enum FileNaming {
     public static let defaultTemplate = "{domain} — {size}"
 
     /// The tokens a template can use, for Settings.
-    public static let tokens = ["{domain}", "{title}", "{size}", "{dimensions}", "{look}", "{date}"]
+    public static let tokens = ["{domain}", "{title}", "{size}", "{dimensions}", "{frame}", "{date}"]
 
     public struct Context: Sendable {
         public var url: URL?
@@ -13,16 +13,17 @@ public enum FileNaming {
         public var sizeName: String
         public var width: Int
         public var height: Int
-        public var lookName: String
+        /// The window and backdrop, such as “Safari on Canvas”.
+        public var frameName: String
         public var date: Date
 
-        public init(url: URL?, title: String = "", sizeName: String, width: Int, height: Int, lookName: String = "", date: Date = .now) {
+        public init(url: URL?, title: String = "", sizeName: String, width: Int, height: Int, frameName: String = "", date: Date = .now) {
             self.url = url
             self.title = title
             self.sizeName = sizeName
             self.width = width
             self.height = height
-            self.lookName = lookName
+            self.frameName = frameName
             self.date = date
         }
     }
@@ -35,7 +36,7 @@ public enum FileNaming {
         var result = template
         for (token, value) in [
             ("{domain}", domain), ("{title}", context.title), ("{size}", context.sizeName),
-            ("{dimensions}", "\(context.width)×\(context.height)"), ("{look}", context.lookName), ("{date}", date)
+            ("{dimensions}", "\(context.width)×\(context.height)"), ("{frame}", context.frameName), ("{date}", date)
         ] {
             result = result.replacingOccurrences(of: token, with: value)
         }

@@ -15,7 +15,6 @@ struct GlamshotCommands: Commands {
     @FocusedValue(\.inspectorShown) private var inspectorShown
     @FocusedValue(\.shotsTrayShown) private var shotsTrayShown
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.openSettings) private var openSettings
     private let recents = RecentPages.shared
     private let safari = SafariBridge.shared
 
@@ -183,16 +182,7 @@ struct GlamshotCommands: Commands {
             Button("Clear Website Data…") { Task { await clearWebsiteData() } }
         }
 
-        CommandMenu("Preset") {
-            ForEach(Array(Defaults.shared.allLooks.enumerated()), id: \.element.id) { index, look in
-                let button = Button(look.name) { model?.apply(look) }.disabled(model == nil)
-                if index < 9 {
-                    button.keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: [.command, .option])
-                } else {
-                    button
-                }
-            }
-            Divider()
+        CommandMenu("Frame") {
             Picker("Window", selection: Binding(
                 get: { model?.look.window ?? .safari },
                 set: { value in model?.setLook(as: "Change Window") { $0.window = value } }
@@ -232,10 +222,6 @@ struct GlamshotCommands: Commands {
                 .disabled(model?.look.backdrop != .desktop)
             Button("Fill Desktop") { model?.fillDesktop() }
                 .disabled(model?.look.backdrop != .desktop)
-            Divider()
-            Button("Save Preset…") { model?.isNamingLook = true }
-                .disabled(model == nil)
-            Button("Edit Presets…") { openSettings() }
         }
 
         CommandMenu("Bookmarks") {

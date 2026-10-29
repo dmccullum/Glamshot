@@ -4,7 +4,7 @@ import GlamshotCore
 import UniformTypeIdentifiers
 
 // Shortcuts actions. They run inside Glamshot, in a window of their own that never shows, so
-// they share the person's sign-ins, sizes, Looks and output format with the app.
+// they share the person's sign-ins, sizes, framing and output format with the app.
 
 /// A size as Shortcuts sees it: every built-in and custom size, by name.
 struct SizeEntity: AppEntity {
@@ -43,47 +43,10 @@ struct SizeQuery: EntityStringQuery {
     }
 }
 
-/// A Look as Shortcuts sees it.
-struct LookEntity: AppEntity {
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Glamshot Preset"
-    static let defaultQuery = LookQuery()
-
-    let id: String
-    let name: String
-    let summary: String
-
-    init(_ look: Look) {
-        id = look.id
-        name = look.name
-        summary = look.summary
-    }
-
-    var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(name)", subtitle: "\(summary)")
-    }
-}
-
-struct LookQuery: EntityStringQuery {
-    @MainActor
-    func entities(for identifiers: [LookEntity.ID]) async throws -> [LookEntity] {
-        Defaults.shared.allLooks.filter { identifiers.contains($0.id) }.map(LookEntity.init)
-    }
-
-    @MainActor
-    func entities(matching string: String) async throws -> [LookEntity] {
-        Defaults.shared.allLooks.filter { $0.name.localizedStandardContains(string) }.map(LookEntity.init)
-    }
-
-    @MainActor
-    func suggestedEntities() async throws -> [LookEntity] {
-        Defaults.shared.allLooks.map(LookEntity.init)
-    }
-}
-
 struct TakeGlamshotIntent: AppIntent {
     static let title: LocalizedStringResource = "Take Glamshot"
     static let description = IntentDescription(
-        "Photographs a webpage at a size and frames it with a preset, as an image in Glamshot’s output format.",
+        "Photographs a webpage at a size, framed as Glamshot’s window was last set up, as an image in Glamshot’s output format.",
         categoryName: "Webpages"
     )
 
@@ -93,14 +56,11 @@ struct TakeGlamshotIntent: AppIntent {
     @Parameter(title: "Size", description: "Leave empty for MacBook Pro 14\".")
     var size: SizeEntity?
 
-    @Parameter(title: "Preset", description: "Leave empty for the preset last used in Glamshot.")
-    var look: LookEntity?
-
     @Parameter(title: "Full Page", default: false)
     var fullPage: Bool
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Take Glamshot of \(\.$url) at \(\.$size) with \(\.$look)") {
+        Summary("Take Glamshot of \(\.$url) at \(\.$size)") {
             \.$fullPage
         }
     }
@@ -109,7 +69,7 @@ struct TakeGlamshotIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> {
         let defaults = Defaults.shared
         let preset = size.flatMap { entity in defaults.allPresets.first { $0.id == entity.id } } ?? .macBookPro14
-        let chosenLook = look.flatMap { entity in defaults.allLooks.first { $0.id == entity.id } } ?? defaults.look
+        let chosenLook = defaults.look
         var options = defaults.capture
         options.apply(preset)
         options.fullPage = fullPage

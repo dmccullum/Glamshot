@@ -33,8 +33,6 @@ final class ShootModel {
     }
     /// The Export Sizes sheet is up.
     var isChoosingExportSizes = false
-    /// The Save Look sheet is up.
-    var isNamingLook = false
     /// The Hide Elements sheet is up.
     var isEditingHiddenElements = false
 
@@ -398,7 +396,7 @@ final class ShootModel {
         let options = capture ?? self.capture
         return FileNaming.name(Defaults.shared.fileNameTemplate, FileNaming.Context(
             url: url, title: title, sizeName: sizeName ?? self.sizeName,
-            width: options.width, height: options.height, lookName: (look ?? self.look).name
+            width: options.width, height: options.height, frameName: (look ?? self.look).summary
         ))
     }
 
@@ -546,23 +544,6 @@ final class ShootModel {
 
     // MARK: Looks
 
-    func apply(_ look: Look) {
-        setLook(as: "Use \(look.name)") { current in
-            // Keep the desktop window where it was when the Look doesn't move it.
-            current = look
-        }
-    }
-
-    func saveLook(named name: String) {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        var saved = look
-        saved.id = UUID().uuidString
-        saved.name = trimmed
-        Defaults.shared.customLooks.append(saved)
-        status = StatusMessage("Saved Preset “\(trimmed)”")
-    }
-
     func shuffleBackground() {
         guard case .gradient(let name, _) = look.background else { return }
         setLook(as: "Shuffle Background") { $0.background = .gradient(name: name, seed: UInt32.random(in: 1...UInt32.max)) }
@@ -575,9 +556,6 @@ final class ShootModel {
         setLook(as: "Change Background") { $0.background = .image(path: url.path) }
     }
 
-    var currentLookID: String? {
-        Defaults.shared.allLooks.first { $0.matchesStyle(of: look) }?.id
-    }
 }
 
 // MARK: - Supporting types
@@ -625,10 +603,3 @@ private final class NavigationDelegate: NSObject, WKNavigationDelegate {
     }
 }
 
-extension Look {
-    /// Same window, backdrop and background, ignoring name and the desktop window's place.
-    func matchesStyle(of other: Look) -> Bool {
-        window == other.window && backdrop == other.backdrop && safari == other.safari
-            && canvas == other.canvas && background == other.background
-    }
-}

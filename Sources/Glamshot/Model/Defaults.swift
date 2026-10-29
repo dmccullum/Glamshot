@@ -13,7 +13,6 @@ final class Defaults {
     var capture: CaptureOptions { didSet { save(capture, "capture") } }
     var look: Look { didSet { save(look, "look") } }
     var customPresets: [SizePreset] { didSet { save(customPresets, "customPresets") } }
-    var customLooks: [Look] { didSet { save(customLooks, "customLooks") } }
     var fileNameTemplate: String { didSet { store.set(fileNameTemplate, forKey: "fileNameTemplate") } }
     var format: ImageFormat { didSet { store.set(format.rawValue, forKey: "format") } }
     var jpegQuality: Double { didSet { store.set(jpegQuality, forKey: "jpegQuality") } }
@@ -23,9 +22,8 @@ final class Defaults {
 
     private init() {
         capture = Self.load("capture", from: store) ?? CaptureOptions()
-        look = Self.load("look", from: store) ?? Look.builtIns[1]
+        look = Self.load("look", from: store) ?? .standard
         customPresets = Self.load("customPresets", from: store) ?? []
-        customLooks = Self.load("customLooks", from: store) ?? []
         fileNameTemplate = store.string(forKey: "fileNameTemplate") ?? FileNaming.defaultTemplate
         format = store.string(forKey: "format").flatMap(ImageFormat.init(rawValue:)) ?? .png
         jpegQuality = store.object(forKey: "jpegQuality") as? Double ?? 0.9
@@ -34,7 +32,6 @@ final class Defaults {
     }
 
     var allPresets: [SizePreset] { SizePreset.builtIns + customPresets }
-    var allLooks: [Look] { Look.builtIns + customLooks }
 
     private func save<T: Encodable>(_ value: T, _ key: String) {
         store.set(try? JSONEncoder().encode(value), forKey: key)
