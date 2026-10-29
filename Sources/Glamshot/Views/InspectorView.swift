@@ -50,7 +50,7 @@ private struct SizeCard: View {
         } content: {
             Menu {
                 ForEach(SizePreset.Group.allCases, id: \.self) { group in
-                    let presets = Defaults.shared.allPresets.filter { $0.group == group }
+                    let presets = Defaults.shared.presets.filter { $0.group == group }
                     if !presets.isEmpty {
                         Section(group.title) {
                             ForEach(presets) { preset in
@@ -216,24 +216,27 @@ private struct FrameCard: View {
         }
     }
 
-    /// One slider: its default is Auto, dragging sets a fixed amount, and double-clicking the title
-    /// returns to Auto.
-    private var paddingSlider: some View {
-        let automatic = FrameLayout.automaticPadding(for: model.capture.outputSize)
-        return InspectorSlider(model.look.canvas.autoPadding ? "Padding · Auto" : "Padding",
-                               value: model.effectivePadding, in: 0...400, default: automatic,
-                               format: .init(unit: .points), snapsToStep: true) { value in
-            model.beginGesture()
-            if value == automatic {
-                model.look.canvas.autoPadding = true
-            } else {
-                model.look.canvas.autoPadding = false
-                model.look.canvas.padding = value
+    /// Auto Padding picks the amount from the size; off, the slider sets it. While Auto is on the
+    /// slider is dimmed and shows the automatic amount.
+    @ViewBuilder private var paddingSlider: some View {
+        SwitchRow("Auto Padding", isOn: Binding(
+            get: { model.look.canvas.autoPadding },
+            set: { value in
+                model.setLook(as: value ? "Turn On Auto Padding" : "Turn Off Auto Padding") { look in
+                    // Turning Auto off starts from the amount it was using.
+                    if !value { look.canvas.padding = FrameLayout.automaticPadding(for: model.capture.outputSize) }
+                    look.canvas.autoPadding = value
+                }
             }
+        ))
+        InspectorSlider("Padding", value: model.effectivePadding, in: 0...400,
+                        format: .init(unit: .points), snapsToStep: true) { value in
+            model.beginGesture()
+            model.look.canvas.padding = value
         } commit: {
             model.endGesture(as: "Change Padding")
         }
-        .help("Double-click the title to return to automatic padding")
+        .disabled(model.look.canvas.autoPadding)
     }
 }
 
