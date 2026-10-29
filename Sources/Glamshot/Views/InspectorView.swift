@@ -3,9 +3,10 @@ import DMKit
 import GlamshotCore
 import SwiftUI
 
-/// Four cards in the order a shot is made: the output's size, how the page lays out in it, the
-/// browser window, and what the window sits on. Every control has its title above it and fills
-/// the card's width; switches sit at the right of their row.
+/// Cards in the order a shot is made: the output's size, how the page lays out in it, the browser
+/// window, and what the window sits on. Every control has its title above it and fills the card's
+/// width; switches sit at the right of their row. Controls that don't apply in the current mode
+/// aren't shown (the menu bar keeps them, disabled).
 struct InspectorView: View {
     @Bindable var model: ShootModel
 
@@ -14,7 +15,9 @@ struct InspectorView: View {
             VStack(spacing: DMLayout.inspectorSpacing) {
                 OutputCard(model: model)
                 PageCard(model: model)
-                WindowCard(model: model)
+                if !model.capture.fullPage {
+                    WindowCard(model: model)
+                }
                 BackdropCard(model: model)
             }
             .padding(DMLayout.inspectorPadding)
@@ -158,9 +161,9 @@ private struct WindowCard: View {
     private var device: SafariOptions.Device { model.effectiveLook.safari.device }
 
     var body: some View {
-        InspectorCard("Safari Window", systemImage: "macwindow", isActive: isOn && !model.capture.fullPage) {
+        InspectorCard("Safari Window", systemImage: "macwindow", isActive: isOn) {
             Toggle("Safari Window", isOn: Binding(
-                get: { isOn && !model.capture.fullPage },
+                get: { isOn },
                 set: { value in
                     model.setLook(as: value ? "Show Safari Window" : "Hide Safari Window") { $0.window = value ? .safari : .none }
                 }
@@ -168,14 +171,8 @@ private struct WindowCard: View {
             .toggleStyle(.switch)
             .labelsHidden()
             .controlSize(.small)
-            .disabled(model.capture.fullPage)
         } content: {
-            if model.capture.fullPage {
-                Text("Full-page captures have no window, since no browser shows a whole page at once.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else if isOn {
+            if isOn {
                 StackedControl("Device") {
                     FilledSegments("Device", selection: Binding(
                         get: { model.look.safari.device },
@@ -264,17 +261,18 @@ private struct BackdropCard: View {
             .controlSize(.small)
         } content: {
             if isOn {
-                FilledSegments("Backdrop", selection: Binding(
-                    get: { model.look.backdrop },
-                    set: { value in model.setBackdrop(value) }
-                ), segments: [
-                    .init(value: Backdrop.canvas, title: "Canvas", help: "A background with padding around the window"),
-                    .init(value: Backdrop.desktop, title: "Desktop",
-                          help: model.capture.fullPage ? "Not available for full-page captures" : "A Mac desktop with a menu bar")
-                ])
-                .disabled(model.capture.fullPage && model.look.backdrop != .desktop)
+                // A full page can only sit on a canvas.
+                if !model.capture.fullPage {
+                    FilledSegments("Backdrop", selection: Binding(
+                        get: { model.look.backdrop },
+                        set: { value in model.setBackdrop(value) }
+                    ), segments: [
+                        .init(value: Backdrop.canvas, title: "Canvas", help: "A background with padding around the window"),
+                        .init(value: Backdrop.desktop, title: "Desktop", help: "A Mac desktop with a menu bar")
+                    ])
+                }
                 BackgroundPicker(model: model)
-                if model.look.backdrop == .canvas {
+                if model.effectiveLook.backdrop == .canvas {
                     canvasControls
                     shadowSlider
                 } else {
@@ -375,8 +373,9 @@ private struct BackgroundPicker: View {
                     }
                 }
                 HStack(spacing: 6) {
-                    Button { model.shuffleBackground() } label: { Text("Shuffle").frame(maxWidth: .infinity) }
-                        .disabled(model.look.background.gradientName == nil)
+                    if model.look.background.gradientName != nil {
+                        Button { model.shuffleBackground() } label: { Text("Shuffle").frame(maxWidth: .infinity) }
+                    }
                     Button { Task { await model.chooseBackgroundImage() } } label: { Text("Image…").frame(maxWidth: .infinity) }
                     ColorPicker("Background Color", selection: Binding(
                         get: { model.look.background.color ?? .white },

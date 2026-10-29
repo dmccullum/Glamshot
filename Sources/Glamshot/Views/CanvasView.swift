@@ -71,7 +71,12 @@ struct CanvasView: View {
             }
             .scrollDisabled(model.zoom == .fit)
             .overlay(alignment: .top) { fullPageCapsule.padding(.top, 12) }
-            .overlay(alignment: .bottom) { captureModeBar.padding(.bottom, DMLayout.overlayMargin) }
+            .overlay(alignment: .bottom) {
+                // A desktop shows one screen, so there's nothing to choose there.
+                if model.look.backdrop != .desktop {
+                    captureModeBar.padding(.bottom, DMLayout.overlayMargin)
+                }
+            }
         }
         .background(Color(nsColor: .underPageBackgroundColor))
         .dropTarget(for: URL.self, isTargeted: $isDropTargeted) { urls, _ in
@@ -132,10 +137,7 @@ struct CanvasView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
-            .disabled(model.look.backdrop == .desktop)
-            .help(model.look.backdrop == .desktop
-                  ? "A desktop shows one screen. Turn off the desktop backdrop for a full page."
-                  : "One screen at the output size, or the page’s full length (⌥⌘F)")
+            .help("One screen at the output size, or the page’s full length (⌥⌘F)")
         }
     }
 
