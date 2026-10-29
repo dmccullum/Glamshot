@@ -35,11 +35,12 @@ struct InspectorView: View {
 
 // MARK: - Size
 
+/// Which of a width × height pair has the keyboard.
+private enum SizeField: Hashable { case width, height }
+
 private struct SizeCard: View {
     let model: ShootModel
-    @State private var width = ""
-    @State private var height = ""
-    @FocusState private var widthFocused: Bool
+    @FocusState private var focused: SizeField?
 
     var body: some View {
         InspectorCard("Size", systemImage: "aspectratio") {
@@ -71,9 +72,9 @@ private struct SizeCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 6) {
-                TextField("Width", text: $width)
-                    .onSubmit(commit)
-                    .focused($widthFocused)
+                TextField("Width", value: Binding(get: { model.capture.width }, set: { setSize(width: $0) }),
+                          format: .number.grouping(.never))
+                    .focused($focused, equals: .width)
                 Text("×").foregroundStyle(.secondary)
                 if model.capture.fullPage {
                     // The page's length sets the height.
@@ -81,7 +82,9 @@ private struct SizeCard: View {
                         .disabled(true)
                         .help("A full page is as tall as the page")
                 } else {
-                    TextField("Height", text: $height).onSubmit(commit)
+                    TextField("Height", value: Binding(get: { model.capture.height }, set: { setSize(height: $0) }),
+                              format: .number.grouping(.never))
+                        .focused($focused, equals: .height)
                 }
                 Text("pt").foregroundStyle(.secondary)
                 Picker("Scale", selection: Binding(
@@ -97,9 +100,7 @@ private struct SizeCard: View {
             .textFieldStyle(.roundedBorder)
             .monospacedDigit()
         }
-        .onAppear(perform: syncFields)
-        .onChange(of: model.capture) { syncFields() }
-        .onChange(of: model.focusSizeRequest) { widthFocused = true }
+        .onChange(of: model.focusSizeRequest) { focused = .width }
     }
 
     /// The saved image's size in pixels.
@@ -112,17 +113,12 @@ private struct SizeCard: View {
         return "\(width.formatted()) × \(Int(layout.canvasSize.height * scale).formatted()) px"
     }
 
-    private func syncFields() {
-        width = "\(model.capture.width)"
-        height = "\(model.capture.height)"
-    }
-
-    private func commit() {
-        let h = model.capture.fullPage ? model.capture.height : Int(height) ?? 0
-        guard let w = Int(width), (200...8000).contains(w), (200...8000).contains(h) else {
-            syncFields()
-            return
-        }
+    /// Applies a typed width or height, on Return or when the field loses focus, kept between
+    /// 200 and 8000 points.
+    private func setSize(width: Int? = nil, height: Int? = nil) {
+        let w = min(max(width ?? model.capture.width, 200), 8000)
+        let h = min(max(height ?? model.capture.height, 200), 8000)
+        guard w != model.capture.width || h != model.capture.height else { return }
         model.setCapture(as: "Change Size") {
             $0.width = w
             $0.height = h
@@ -335,15 +331,15 @@ private struct FrameThumbnail: View {
 /// The desktop window's size in points, live as it's dragged, with Center and Fill.
 private struct DesktopWindowSize: View {
     let model: ShootModel
-    @State private var width = ""
-    @State private var height = ""
 
     var body: some View {
         StackedControl("Window Size") {
             HStack(spacing: 6) {
-                TextField("Width", text: $width).onSubmit(commit)
+                TextField("Width", value: Binding(get: { Int(model.desktopWindowSize.width) }, set: { resize(width: $0) }),
+                          format: .number.grouping(.never))
                 Text("×").foregroundStyle(.secondary)
-                TextField("Height", text: $height).onSubmit(commit)
+                TextField("Height", value: Binding(get: { Int(model.desktopWindowSize.height) }, set: { resize(height: $0) }),
+                          format: .number.grouping(.never))
                 Text("pt").foregroundStyle(.secondary)
                 Button { model.centerDesktopWindow() } label: {
                     Label("Center Window", systemImage: "align.horizontal.center")
@@ -359,23 +355,17 @@ private struct DesktopWindowSize: View {
             .textFieldStyle(.roundedBorder)
             .monospacedDigit()
         }
-        .onAppear(perform: sync)
-        .onChange(of: model.look.desktop) { sync() }
-        .onChange(of: model.capture.outputSize) { sync() }
     }
 
-    private func sync() {
+    /// Resizes the window around its center to a typed width or height; the desktop keeps it
+    /// between the smallest window and the area below the menu bar.
+    private func resize(width: Int? = nil, height: Int? = nil) {
         let size = model.desktopWindowSize
-        width = "\(Int(size.width))"
-        height = "\(Int(size.height))"
-    }
-
-    private func commit() {
-        guard let w = Double(width), let h = Double(height) else { return sync() }
+        let new = CGSize(width: CGFloat(width ?? Int(size.width)), height: CGFloat(height ?? Int(size.height)))
+        guard Int(new.width) != Int(size.width) || Int(new.height) != Int(size.height) else { return }
         model.beginGesture()
-        model.desktopWindowSize = CGSize(width: w, height: h)
+        model.desktopWindowSize = new
         model.endGesture(as: "Resize Window")
-        sync()
     }
 }
 
