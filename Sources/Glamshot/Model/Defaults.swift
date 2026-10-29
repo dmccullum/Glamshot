@@ -18,6 +18,8 @@ final class Defaults {
     var format: ImageFormat { didSet { store.set(format.rawValue, forKey: "format") } }
     var jpegQuality: Double { didSet { store.set(jpegQuality, forKey: "jpegQuality") } }
     var saveFolder: URL? { didSet { store.set(saveFolder, forKey: "saveFolder") } }
+    /// Seconds to wait after a page settles before photographing it, for animations and late content.
+    var waitAfterLoading: Double { didSet { store.set(waitAfterLoading, forKey: "waitAfterLoading") } }
 
     private init() {
         capture = Self.load("capture", from: store) ?? CaptureOptions()
@@ -28,6 +30,7 @@ final class Defaults {
         format = store.string(forKey: "format").flatMap(ImageFormat.init(rawValue:)) ?? .png
         jpegQuality = store.object(forKey: "jpegQuality") as? Double ?? 0.9
         saveFolder = store.url(forKey: "saveFolder")
+        waitAfterLoading = store.object(forKey: "waitAfterLoading") as? Double ?? 0.5
     }
 
     var allPresets: [SizePreset] { SizePreset.builtIns + customPresets }

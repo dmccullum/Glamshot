@@ -35,6 +35,10 @@ final class ShootModel {
     }
     /// The Export Sizes sheet is up.
     var isChoosingExportSizes = false
+    /// The Save Look sheet is up.
+    var isNamingLook = false
+    /// The Hide Elements sheet is up.
+    var isEditingHiddenElements = false
 
     // MARK: Output
 
@@ -331,7 +335,7 @@ final class ShootModel {
         Task {
             var options = capture
             options.scale = 1
-            options.delay = 0
+            options.delay = Defaults.shared.waitAfterLoading
             fullPagePreview = try? await photographer.capture(options)
         }
     }
@@ -348,6 +352,7 @@ final class ShootModel {
             options.height = Int(viewport.height)
             options.fullPage = false
         }
+        options.delay = Defaults.shared.waitAfterLoading
         let original = webView.frame.size
         if original != options.viewport { webView.setFrameSize(options.viewport) }
         defer { if original != options.viewport { webView.setFrameSize(original) } }
@@ -501,6 +506,16 @@ final class ShootModel {
             // Keep the desktop window where it was when the Look doesn't move it.
             current = look
         }
+    }
+
+    func saveLook(named name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        var saved = look
+        saved.id = UUID().uuidString
+        saved.name = trimmed
+        Defaults.shared.customLooks.append(saved)
+        status = StatusMessage("Saved Look “\(trimmed)”")
     }
 
     func shuffleBackground() {

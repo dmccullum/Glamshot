@@ -8,13 +8,13 @@ struct FrameLayoutTests {
     let page = CGSize(width: 1512, height: 982)
 
     @Test func barePageIsThePage() {
-        let layout = FrameLayout.make(page: page, look: Look(name: "Bare", window: .none, backdrop: .none))
+        let layout = FrameLayout.make(page: page, look: Look(name: "Bare", window: .none, backdrop: .none, shadow: 0))
         #expect(layout.canvasSize == page)
         #expect(layout.pageRect == CGRect(origin: .zero, size: page))
     }
 
     @Test func safariAddsChromeAndShadowRoom() {
-        let layout = FrameLayout.make(page: page, look: Look(name: "Safari", window: .safari, backdrop: .none))
+        let layout = FrameLayout.make(page: page, look: Look(name: "Safari", window: .safari, backdrop: .none, shadow: 1))
         let margin = ChromeMetrics.shadowMargin
         #expect(layout.chromeHeight == ChromeMetrics.toolbarHeight)
         #expect(layout.canvasSize == CGSize(width: 1512 + margin * 2, height: 982 + 52 + margin * 2))
@@ -25,7 +25,7 @@ struct FrameLayoutTests {
     @Test func tabBarAddsItsHeight() {
         var look = Look(name: "Tabs", window: .safari, backdrop: .none)
         look.safari.showsTabBar = true
-        look.safari.showsShadow = false
+        look.shadow = 0
         let layout = FrameLayout.make(page: page, look: look)
         #expect(layout.canvasSize.height == CGFloat(982 + 52 + 28))
     }

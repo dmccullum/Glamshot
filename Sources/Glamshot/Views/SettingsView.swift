@@ -28,10 +28,31 @@ private struct GeneralSettings: View {
                 Picker("Format", selection: $defaults.format) {
                     ForEach(ImageFormat.allCases) { Text($0.title).tag($0) }
                 }
+                if defaults.format != .png {
+                    Slider(value: $defaults.jpegQuality, in: 0.5...1) {
+                        Text("Quality")
+                    } minimumValueLabel: {
+                        Text("Smaller")
+                    } maximumValueLabel: {
+                        Text("Best")
+                    }
+                }
                 LabeledContent("Save Folder") {
                     Text(defaults.saveFolder?.lastPathComponent ?? "Ask Each Time")
                         .foregroundStyle(.secondary)
                 }
+            }
+            Section {
+                Picker("Wait After Loading", selection: $defaults.waitAfterLoading) {
+                    Text("None").tag(0.0)
+                    Text("0.5 Seconds").tag(0.5)
+                    Text("1 Second").tag(1.0)
+                    Text("2 Seconds").tag(2.0)
+                    Text("5 Seconds").tag(5.0)
+                }
+                Text("Time for animations and late-loading content to finish before Glamshot photographs the page.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

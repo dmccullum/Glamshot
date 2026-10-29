@@ -126,13 +126,6 @@ struct GlamshotCommands: Commands {
             ))
             .keyboardShortcut("f", modifiers: [.command, .option])
             .disabled(model == nil || model?.look.backdrop == .desktop)
-            Picker("Page Appearance", selection: Binding(
-                get: { model?.capture.appearance ?? .light },
-                set: { value in model?.setCapture(as: "Change Page Appearance") { $0.appearance = value } }
-            )) {
-                ForEach(CaptureOptions.Appearance.allCases, id: \.self) { Text($0.title).tag($0) }
-            }
-            .disabled(model == nil)
             Divider()
         }
 
@@ -159,6 +152,22 @@ struct GlamshotCommands: Commands {
                 }
             }
             .disabled(model == nil || model?.look.backdrop == .desktop)
+            Picker("Page Appearance", selection: Binding(
+                get: { model?.capture.appearance ?? .light },
+                set: { value in model?.setCapture(as: "Change Page Appearance") { $0.appearance = value } }
+            )) {
+                ForEach(CaptureOptions.Appearance.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .disabled(model == nil)
+            Toggle("Request Mobile Website", isOn: Binding(
+                get: { model?.capture.userAgent == .iPhone },
+                set: { value in
+                    model?.setCapture(as: value ? "Request Mobile Website" : "Request Desktop Website") { $0.userAgent = value ? .iPhone : .mac }
+                }
+            ))
+            .disabled(model == nil)
+            Button("Hide Elements…") { model?.isEditingHiddenElements = true }
+                .disabled(model == nil)
             Divider()
             Button("Cancel Export") { model?.cancel() }
                 .disabled(!(model?.canCancel ?? false))
@@ -191,15 +200,33 @@ struct GlamshotCommands: Commands {
             }
             .disabled(model == nil)
             Divider()
-            Button("Auto Balance") { model?.setLook(as: "Turn On Auto Balance") { $0.canvas.autoBalance = true } }
-                .disabled(model?.look.backdrop != .canvas || model?.look.canvas.autoBalance == true)
-            Button("Shuffle Background") { model?.shuffleBackground() }
-                .disabled(model?.look.backdrop == Backdrop.none || model?.look.background.gradientName == nil)
+            Toggle("Auto Balance", isOn: Binding(
+                get: { model?.look.canvas.autoBalance ?? false },
+                set: { value in
+                    model?.setLook(as: value ? "Turn On Auto Balance" : "Turn Off Auto Balance") { $0.canvas.autoBalance = value }
+                }
+            ))
+            .disabled(model?.look.backdrop != .canvas)
+            Menu("Background") {
+                ForEach(GradientLibrary.entries) { entry in
+                    Toggle(entry.name, isOn: Binding(
+                        get: { model?.look.background.gradientName == entry.name },
+                        set: { _ in model?.setLook(as: "Change Background") { $0.background = .gradient(name: entry.name, seed: 0) } }
+                    ))
+                }
+                Divider()
+                Button("Shuffle") { model?.shuffleBackground() }
+                    .disabled(model?.look.background.gradientName == nil)
+                Button("Image…") { Task { await model?.chooseBackgroundImage() } }
+            }
+            .disabled(model == nil || model?.look.backdrop == Backdrop.none)
             Button("Center Window") { model?.centerDesktopWindow() }
                 .disabled(model?.look.backdrop != .desktop)
             Button("Fill Desktop") { model?.fillDesktop() }
                 .disabled(model?.look.backdrop != .desktop)
             Divider()
+            Button("Save Look…") { model?.isNamingLook = true }
+                .disabled(model == nil)
             Button("Edit Looks…") { openSettings() }
         }
 

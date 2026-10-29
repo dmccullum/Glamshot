@@ -21,7 +21,7 @@ public struct FrameLayout: Equatable, Sendable {
 
         switch look.backdrop {
         case .none:
-            let margin = look.window == .safari && look.safari.showsShadow ? ChromeMetrics.shadowMargin : 0
+            let margin = look.shadow > 0 ? (ChromeMetrics.shadowMargin * min(look.shadow, 1)).rounded() : 0
             let rect = CGRect(origin: CGPoint(x: margin, y: margin), size: window)
             return FrameLayout(
                 canvasSize: CGSize(width: window.width + margin * 2, height: window.height + margin * 2),

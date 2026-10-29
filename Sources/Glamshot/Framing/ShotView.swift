@@ -43,13 +43,7 @@ struct ShotView<Page: View>: View {
         }
     }
 
-    private var shadowStrength: CGFloat {
-        switch look.backdrop {
-        case .none: look.window == .safari && look.safari.showsShadow ? 1 : 0
-        case .canvas: look.canvas.shadow
-        case .desktop: 1
-        }
-    }
+    private var shadowStrength: CGFloat { min(max(look.shadow, 0), 1) }
 
     var body: some View {
         ZStack(alignment: .topLeading) {

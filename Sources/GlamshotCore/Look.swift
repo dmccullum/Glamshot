@@ -11,6 +11,9 @@ public struct Look: Codable, Hashable, Identifiable, Sendable {
     public var canvas: CanvasOptions
     public var desktop: DesktopOptions
     public var background: BackgroundFill
+    /// The window's shadow, 0 for none to 1 for a full macOS window shadow. On no backdrop, any
+    /// shadow adds transparent room around the window so it isn't cut off.
+    public var shadow: CGFloat
 
     public init(
         id: String = UUID().uuidString,
@@ -20,7 +23,8 @@ public struct Look: Codable, Hashable, Identifiable, Sendable {
         safari: SafariOptions = SafariOptions(),
         canvas: CanvasOptions = CanvasOptions(),
         desktop: DesktopOptions = DesktopOptions(),
-        background: BackgroundFill = .gradient(name: "Dusk", seed: 0)
+        background: BackgroundFill = .gradient(name: "Dusk", seed: 0),
+        shadow: CGFloat = 0.7
     ) {
         self.id = id
         self.name = name
@@ -30,6 +34,7 @@ public struct Look: Codable, Hashable, Identifiable, Sendable {
         self.canvas = canvas
         self.desktop = desktop
         self.background = background
+        self.shadow = shadow
     }
 
     /// “Safari on Canvas”, “Bare Page”, for window subtitles.
@@ -43,7 +48,7 @@ public struct Look: Codable, Hashable, Identifiable, Sendable {
     }
 
     public static let builtIns: [Look] = [
-        Look(id: "bare", name: "Bare Page", window: .none, backdrop: .none),
+        Look(id: "bare", name: "Bare Page", window: .none, backdrop: .none, shadow: 0),
         Look(id: "safari", name: "Safari, Transparent", window: .safari, backdrop: .none),
         Look(id: "canvas-4x5", name: "Safari on Canvas 4:5", window: .safari, backdrop: .canvas,
              canvas: CanvasOptions(aspect: .r4x5, autoBalance: true)),
@@ -91,7 +96,7 @@ public struct SafariOptions: Codable, Hashable, Sendable {
             switch self {
             case .domain: "Domain"
             case .fullURL: "Full Address"
-            case .hidden: "None"
+            case .hidden: "Hidden"
             }
         }
     }
@@ -99,13 +104,11 @@ public struct SafariOptions: Codable, Hashable, Sendable {
     public var appearance: Appearance = .matchPage
     public var address: Address = .domain
     public var showsTabBar: Bool = false
-    public var showsShadow: Bool = true
 
-    public init(appearance: Appearance = .matchPage, address: Address = .domain, showsTabBar: Bool = false, showsShadow: Bool = true) {
+    public init(appearance: Appearance = .matchPage, address: Address = .domain, showsTabBar: Bool = false) {
         self.appearance = appearance
         self.address = address
         self.showsTabBar = showsTabBar
-        self.showsShadow = showsShadow
     }
 }
 
@@ -157,18 +160,15 @@ public struct CanvasOptions: Codable, Hashable, Sendable {
     public var alignment: CanvasAlignment = .center
     /// Picks padding and alignment for the window's shape: a tall page bleeds off the bottom.
     public var autoBalance: Bool = true
-    /// 0 is no shadow, 1 is a full window shadow.
-    public var shadow: CGFloat = 0.6
     /// Corner radius for a page with no window, in points.
     public var cornerRadius: CGFloat = 14
 
     public init(padding: CGFloat = 96, aspect: AspectRatio = .auto, alignment: CanvasAlignment = .center,
-                autoBalance: Bool = true, shadow: CGFloat = 0.6, cornerRadius: CGFloat = 14) {
+                autoBalance: Bool = true, cornerRadius: CGFloat = 14) {
         self.padding = padding
         self.aspect = aspect
         self.alignment = alignment
         self.autoBalance = autoBalance
-        self.shadow = shadow
         self.cornerRadius = cornerRadius
     }
 }

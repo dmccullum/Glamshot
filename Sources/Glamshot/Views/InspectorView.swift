@@ -3,28 +3,49 @@ import DMKit
 import GlamshotCore
 import SwiftUI
 
+/// Four cards, in the order a shot is made: the Look, the page's size, the browser window, and
+/// what it sits on. Set-once options (wait time, file format, hidden elements, mobile sites) live
+/// in Settings and the Page menu.
 struct InspectorView: View {
     @Bindable var model: ShootModel
 
     var body: some View {
         ScrollView {
             VStack(spacing: DMLayout.inspectorSpacing) {
-                SizeCard(model: model)
-                PageCard(model: model)
                 LookCard(model: model)
+                PageCard(model: model)
                 WindowCard(model: model)
                 BackdropCard(model: model)
-                BackgroundCard(model: model)
-                OutputCard()
             }
             .padding(DMLayout.inspectorPadding)
         }
     }
 }
 
-// MARK: - Size
+// MARK: - Look
 
-private struct SizeCard: View {
+private struct LookCard: View {
+    let model: ShootModel
+
+    var body: some View {
+        InspectorCard("Look", systemImage: "sparkles") {
+            Menu {
+                ForEach(Defaults.shared.allLooks) { look in
+                    Toggle(look.name, isOn: Binding(get: { model.currentLookID == look.id }, set: { _ in model.apply(look) }))
+                }
+                Divider()
+                Button("Save Look…") { model.isNamingLook = true }
+            } label: {
+                Text(model.currentLookID.flatMap { id in Defaults.shared.allLooks.first { $0.id == id }?.name } ?? "Custom")
+            }
+            .frame(maxWidth: 170)
+        }
+    }
+}
+
+// MARK: - Page
+
+private struct PageCard: View {
     let model: ShootModel
     @State private var width = ""
     @State private var height = ""
@@ -32,27 +53,9 @@ private struct SizeCard: View {
     private var isDesktop: Bool { model.look.backdrop == .desktop }
 
     var body: some View {
-        InspectorCard("Size", systemImage: "rectangle.dashed") {
-            EmptyView()
+        InspectorCard("Page", systemImage: "rectangle.dashed") {
+            if isDesktop { displayPicker } else { sizePicker }
         } content: {
-            Picker("Size", selection: Binding(
-                get: { model.currentPreset?.id ?? "" },
-                set: { id in
-                    if let preset = Defaults.shared.allPresets.first(where: { $0.id == id }) { model.choose(preset) }
-                }
-            )) {
-                if model.currentPreset == nil { Text("Custom").tag("") }
-                ForEach(SizePreset.Group.allCases, id: \.self) { group in
-                    let presets = Defaults.shared.allPresets.filter { $0.group == group }
-                    if !presets.isEmpty {
-                        Section(group.title) {
-                            ForEach(presets) { Text("\($0.name)  \($0.dimensions)").tag($0.id) }
-                        }
-                    }
-                }
-            }
-            .labelsHidden()
-            .disabled(isDesktop)
             HStack(spacing: 8) {
                 TextField("Width", text: $width).onSubmit(commit)
                 Text("×").foregroundStyle(.secondary)
@@ -61,8 +64,6 @@ private struct SizeCard: View {
             }
             .textFieldStyle(.roundedBorder)
             .monospacedDigit()
-            .disabled(isDesktop)
-            .help(isDesktop ? "On a desktop, the window’s size sets the viewport" : "The viewport in points")
 
             StackedControl("Scale") {
                 FilledSegments("Scale", selection: Binding(
@@ -71,13 +72,25 @@ private struct SizeCard: View {
                 ), segments: [1, 2, 3].map { .init(value: $0, title: "\($0)×") })
             }
 
-            Toggle("Full Page", isOn: Binding(
-                get: { model.capture.fullPage },
-                set: { value in model.setCapture(as: value ? "Turn On Full Page" : "Turn Off Full Page") { $0.fullPage = value } }
-            ))
-            .disabled(isDesktop)
+            StackedControl("Appearance") {
+                FilledSegments("Appearance", selection: Binding(
+                    get: { model.capture.appearance },
+                    set: { value in model.setCapture(as: "Change Page Appearance") { $0.appearance = value } }
+                ), segments: CaptureOptions.Appearance.allCases.map { .init(value: $0, title: $0.title) })
+            }
 
-            Text(outputDescription)
+            if isDesktop {
+                Text("Drag the window’s toolbar to move it, or its edges to resize it.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                Toggle("Full Page", isOn: Binding(
+                    get: { model.capture.fullPage },
+                    set: { value in model.setCapture(as: value ? "Turn On Full Page" : "Turn Off Full Page") { $0.fullPage = value } }
+                ))
+            }
+
+            Text("Saves \(outputSize)")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -86,11 +99,45 @@ private struct SizeCard: View {
         .onChange(of: model.capture) { syncFields() }
     }
 
-    private var outputDescription: String {
-        let page = model.capture.fullPage ? model.fullPagePreview?.pointSize ?? model.capture.viewport : model.capture.viewport
+    private var sizePicker: some View {
+        Picker("Size", selection: Binding(
+            get: { model.currentPreset?.id ?? "" },
+            set: { id in
+                if let preset = Defaults.shared.allPresets.first(where: { $0.id == id }) { model.choose(preset) }
+            }
+        )) {
+            if model.currentPreset == nil { Text("Custom").tag("") }
+            ForEach(SizePreset.Group.allCases, id: \.self) { group in
+                let presets = Defaults.shared.allPresets.filter { $0.group == group }
+                if !presets.isEmpty {
+                    Section(group.title) {
+                        ForEach(presets) { Text($0.name).tag($0.id) }
+                    }
+                }
+            }
+        }
+        .labelsHidden()
+        .frame(maxWidth: 170)
+    }
+
+    private var displayPicker: some View {
+        Picker("Display", selection: Binding(
+            get: { model.look.desktop.displayID },
+            set: { value in model.setLook(as: "Change Display") { $0.desktop.displayID = value } }
+        )) {
+            ForEach(SizePreset.builtIns.filter { $0.group == .mac }) { Text($0.name).tag($0.id) }
+        }
+        .labelsHidden()
+        .frame(maxWidth: 170)
+    }
+
+    private var outputSize: String {
+        let page = model.capture.fullPage && !isDesktop
+            ? model.fullPagePreview?.pointSize ?? model.capture.viewport
+            : model.capture.viewport
         let layout = FrameLayout.make(page: page, look: model.look)
         let scale = CGFloat(model.capture.scale)
-        return "Image: \(Int(layout.canvasSize.width * scale)) × \(Int(layout.canvasSize.height * scale)) px"
+        return "\(Int(layout.canvasSize.width * scale)) × \(Int(layout.canvasSize.height * scale)) px"
     }
 
     private func syncFields() {
@@ -103,96 +150,19 @@ private struct SizeCard: View {
             syncFields()
             return
         }
-        model.setCapture(as: "Change Size") {
-            $0.width = w
-            $0.height = h
-        }
-    }
-}
-
-// MARK: - Page
-
-private struct PageCard: View {
-    let model: ShootModel
-    @State private var selectors = ""
-
-    var body: some View {
-        InspectorCard("Page", systemImage: "doc.richtext") {
-            EmptyView()
-        } content: {
-            StackedControl("Appearance") {
-                FilledSegments("Appearance", selection: Binding(
-                    get: { model.capture.appearance },
-                    set: { value in model.setCapture(as: "Change Page Appearance") { $0.appearance = value } }
-                ), segments: CaptureOptions.Appearance.allCases.map { .init(value: $0, title: $0.title) })
+        if isDesktop {
+            // On a desktop the fields size the window's page area.
+            model.setDesktopWindow(size: CGSize(width: CGFloat(w), height: CGFloat(h) + chromeHeight), as: "Resize Window")
+        } else {
+            model.setCapture(as: "Change Size") {
+                $0.width = w
+                $0.height = h
             }
-            StackedControl("Site Layout") {
-                FilledSegments("Site Layout", selection: Binding(
-                    get: { model.capture.userAgent },
-                    set: { value in model.setCapture(as: "Change Site Layout") { $0.userAgent = value } }
-                ), segments: [.init(value: UserAgent.mac, title: "Desktop"), .init(value: UserAgent.iPhone, title: "Phone")])
-            }
-            InspectorSlider("Delay", value: model.capture.delay, in: 0...5, default: 0.5,
-                            format: .init(fractionDigits: 1, unit: .init(symbol: "s", spokenName: "seconds"), step: 0.1), snapsToStep: true) { value in
-                model.beginGesture()
-                model.capture.delay = value
-            } commit: {
-                model.endGesture(as: "Change Delay")
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Hide Elements")
-                TextField("CSS selectors, such as #cookie-banner", text: $selectors, axis: .vertical)
-                    .lineLimit(2...4)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { model.setCapture(as: "Hide Elements") { $0.hiddenSelectors = selectors } }
-            }
-        }
-        .onAppear { selectors = model.capture.hiddenSelectors }
-        .onChange(of: model.capture.hiddenSelectors) { selectors = model.capture.hiddenSelectors }
-    }
-}
-
-// MARK: - Look
-
-private struct LookCard: View {
-    let model: ShootModel
-    @State private var isNaming = false
-    @State private var name = ""
-
-    var body: some View {
-        InspectorCard("Look", systemImage: "sparkles") {
-            EmptyView()
-        } content: {
-            Picker("Look", selection: Binding(
-                get: { model.currentLookID ?? "" },
-                set: { id in if let look = Defaults.shared.allLooks.first(where: { $0.id == id }) { model.apply(look) } }
-            )) {
-                if model.currentLookID == nil { Text("Custom").tag("") }
-                ForEach(Defaults.shared.allLooks) { Text($0.name).tag($0.id) }
-            }
-            .labelsHidden()
-            Button("Save Look…") {
-                name = ""
-                isNaming = true
-            }
-        }
-        .alert("Save Look", isPresented: $isNaming) {
-            TextField("Name", text: $name)
-            Button("Save") { saveLook() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("The window, backdrop and background are saved under this name.")
         }
     }
 
-    private func saveLook() {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        var look = model.look
-        look.id = UUID().uuidString
-        look.name = trimmed
-        Defaults.shared.customLooks.append(look)
-        model.status = StatusMessage("Saved Look “\(trimmed)”")
+    private var chromeHeight: CGFloat {
+        model.look.window == .safari ? ChromeMetrics.chromeHeight(showsTabBar: model.look.safari.showsTabBar) : 0
     }
 }
 
@@ -201,20 +171,25 @@ private struct LookCard: View {
 private struct WindowCard: View {
     let model: ShootModel
 
-    var body: some View {
-        InspectorCard("Window", systemImage: "macwindow", isActive: model.look.window == .safari) {
-            EmptyView()
-        } content: {
-            FilledSegments("Window", selection: Binding(
-                get: { model.look.window },
-                set: { value in model.setLook(as: "Change Window") { $0.window = value } }
-            ), segments: WindowStyle.allCases.map { .init(value: $0, title: $0.title) })
+    private var isOn: Bool { model.look.window == .safari }
 
-            if model.look.window == .safari {
-                StackedControl("Appearance") {
-                    FilledSegments("Appearance", selection: Binding(
+    var body: some View {
+        InspectorCard("Safari Window", systemImage: "macwindow", isActive: isOn) {
+            Toggle("Safari Window", isOn: Binding(
+                get: { isOn },
+                set: { value in
+                    model.setLook(as: value ? "Show Safari Window" : "Hide Safari Window") { $0.window = value ? .safari : .none }
+                }
+            ))
+            .toggleStyle(.switch)
+            .labelsHidden()
+            .controlSize(.small)
+        } content: {
+            if isOn {
+                StackedControl("Toolbar") {
+                    FilledSegments("Toolbar", selection: Binding(
                         get: { model.look.safari.appearance },
-                        set: { value in model.setLook(as: "Change Window Appearance") { $0.safari.appearance = value } }
+                        set: { value in model.setLook(as: "Change Toolbar Appearance") { $0.safari.appearance = value } }
                     ), segments: SafariOptions.Appearance.allCases.map { .init(value: $0, title: $0.title) })
                 }
                 Picker("Address", selection: Binding(
@@ -227,12 +202,6 @@ private struct WindowCard: View {
                     get: { model.look.safari.showsTabBar },
                     set: { value in model.setLook(as: value ? "Show Tab Bar" : "Hide Tab Bar") { $0.safari.showsTabBar = value } }
                 ))
-                if model.look.backdrop == .none {
-                    Toggle("Shadow", isOn: Binding(
-                        get: { model.look.safari.showsShadow },
-                        set: { value in model.setLook(as: value ? "Show Shadow" : "Hide Shadow") { $0.safari.showsShadow = value } }
-                    ))
-                }
             }
         }
     }
@@ -244,7 +213,7 @@ private struct BackdropCard: View {
     let model: ShootModel
 
     var body: some View {
-        InspectorCard("Backdrop", systemImage: "photo.on.rectangle", isActive: model.look.backdrop != .none) {
+        InspectorCard("Backdrop", systemImage: "photo.on.rectangle") {
             EmptyView()
         } content: {
             FilledSegments("Backdrop", selection: Binding(
@@ -253,15 +222,30 @@ private struct BackdropCard: View {
             ), segments: Backdrop.allCases.map { .init(value: $0, title: $0.title) })
 
             switch model.look.backdrop {
-            case .none: EmptyView()
-            case .canvas: canvasControls
-            case .desktop: desktopControls
+            case .none:
+                shadowSlider
+            case .canvas:
+                BackgroundPicker(model: model)
+                canvasControls
+                shadowSlider
+            case .desktop:
+                BackgroundPicker(model: model)
+                desktopControls
             }
         }
     }
 
+    private var shadowSlider: some View {
+        InspectorSlider("Shadow", value: model.look.shadow, in: 0...1, default: 0.7) { value in
+            model.beginGesture()
+            model.look.shadow = value
+        } commit: {
+            model.endGesture(as: "Change Shadow")
+        }
+    }
+
     @ViewBuilder private var canvasControls: some View {
-        Picker("Ratio", selection: Binding(
+        Picker("Aspect Ratio", selection: Binding(
             get: { model.look.canvas.aspect },
             set: { value in model.setLook(as: "Change Aspect Ratio") { $0.canvas.aspect = value } }
         )) {
@@ -285,12 +269,6 @@ private struct BackdropCard: View {
                 set: { value in model.setLook(as: "Change Alignment") { $0.canvas.alignment = value } }
             ))
         }
-        InspectorSlider("Shadow", value: model.look.canvas.shadow, in: 0...1, default: 0.6) { value in
-            model.beginGesture()
-            model.look.canvas.shadow = value
-        } commit: {
-            model.endGesture(as: "Change Shadow")
-        }
         if model.look.window == .none {
             InspectorSlider("Corner Radius", value: model.look.canvas.cornerRadius, in: 0...40, default: 14,
                             format: .init(unit: .points), snapsToStep: true) { value in
@@ -303,22 +281,13 @@ private struct BackdropCard: View {
     }
 
     @ViewBuilder private var desktopControls: some View {
-        Picker("Display", selection: Binding(
-            get: { model.look.desktop.displayID },
-            set: { value in model.setLook(as: "Change Display") { $0.desktop.displayID = value } }
-        )) {
-            ForEach(SizePreset.builtIns.filter { $0.group == .mac }) { Text($0.name).tag($0.id) }
-        }
         HStack {
-            Button("Center") { model.centerDesktopWindow() }
+            Button("Center Window") { model.centerDesktopWindow() }
             Button("Fill Desktop") { model.fillDesktop() }
         }
-        Text("Drag the window’s toolbar to move it, or its edges to resize it.")
-            .font(.callout)
-            .foregroundStyle(.secondary)
-        Picker("Menu Bar", selection: Binding(
+        Picker("Menu Bar Text", selection: Binding(
             get: { model.look.desktop.menuBar },
-            set: { value in model.setLook(as: "Change Menu Bar") { $0.desktop.menuBar = value } }
+            set: { value in model.setLook(as: "Change Menu Bar Text") { $0.desktop.menuBar = value } }
         )) {
             ForEach(MenuBarAppearance.allCases, id: \.self) { Text($0.title).tag($0) }
         }
@@ -327,6 +296,49 @@ private struct BackdropCard: View {
         }
         LabeledTextField(title: "Clock", value: model.look.desktop.clock) { value in
             model.setLook(as: "Change Clock") { $0.desktop.clock = value }
+        }
+    }
+}
+
+/// Gradient swatches, then Shuffle, Color and Image… for the canvas or desktop.
+private struct BackgroundPicker: View {
+    let model: ShootModel
+
+    private let columns = [GridItem(.adaptive(minimum: 44), spacing: 6)]
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 6) {
+            ForEach(GradientLibrary.entries) { entry in
+                let selected = model.look.background.gradientName == entry.name
+                Button {
+                    model.setLook(as: "Change Background") { $0.background = .gradient(name: entry.name, seed: 0) }
+                } label: {
+                    BackgroundView(fill: .gradient(name: entry.name, seed: 0))
+                        .frame(height: 32)
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.12), lineWidth: selected ? 2 : 1)
+                        }
+                }
+                .buttonStyle(.plain)
+                .help(entry.name)
+                .accessibilityLabel(entry.name)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        HStack {
+            Button("Shuffle") { model.shuffleBackground() }
+                .disabled(model.look.background.gradientName == nil)
+            ColorPicker("Color", selection: Binding(
+                get: { model.look.background.color ?? .white },
+                set: { color in
+                    model.setLook(as: "Change Background") { $0.background = .color(hex: NSColor(color).hexString) }
+                }
+            ))
+            .labelsHidden()
+            .help("Background Color")
+            Button("Image…") { Task { await model.chooseBackgroundImage() } }
         }
     }
 }
@@ -374,73 +386,6 @@ private struct AlignmentGrid: View {
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-// MARK: - Background
-
-private struct BackgroundCard: View {
-    let model: ShootModel
-
-    private let columns = [GridItem(.adaptive(minimum: 44), spacing: 6)]
-
-    var body: some View {
-        InspectorCard("Background", systemImage: "paintpalette", isActive: model.look.backdrop != .none) {
-            EmptyView()
-        } content: {
-            LazyVGrid(columns: columns, spacing: 6) {
-                ForEach(GradientLibrary.entries) { entry in
-                    let selected = model.look.background.gradientName == entry.name
-                    Button {
-                        model.setLook(as: "Change Background") { $0.background = .gradient(name: entry.name, seed: 0) }
-                    } label: {
-                        BackgroundView(fill: .gradient(name: entry.name, seed: 0))
-                            .frame(height: 32)
-                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                    .strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.12), lineWidth: selected ? 2 : 1)
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .help(entry.name)
-                    .accessibilityLabel(entry.name)
-                    .accessibilityAddTraits(selected ? .isSelected : [])
-                }
-            }
-            HStack {
-                Button("Shuffle") { model.shuffleBackground() }
-                    .disabled(model.look.background.gradientName == nil)
-                ColorPicker("Color", selection: Binding(
-                    get: { model.look.background.color ?? .white },
-                    set: { color in
-                        model.setLook(as: "Change Background") { $0.background = .color(hex: NSColor(color).hexString) }
-                    }
-                ))
-                Button("Image…") { Task { await model.chooseBackgroundImage() } }
-            }
-        }
-        .disabled(model.look.backdrop == .none)
-    }
-}
-
-// MARK: - Output
-
-private struct OutputCard: View {
-    @Bindable private var defaults = Defaults.shared
-
-    var body: some View {
-        InspectorCard("Output", systemImage: "square.and.arrow.down") {
-            EmptyView()
-        } content: {
-            FilledSegments("Format", selection: $defaults.format,
-                           segments: ImageFormat.allCases.map { .init(value: $0, title: $0.title) })
-            if defaults.format != .png {
-                InspectorSlider("Quality", value: defaults.jpegQuality, in: 0.5...1, default: 0.9) { value in
-                    defaults.jpegQuality = value
-                } commit: {}
             }
         }
     }
