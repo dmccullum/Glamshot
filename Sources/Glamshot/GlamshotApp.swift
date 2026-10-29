@@ -27,10 +27,8 @@ struct GlamshotApp: App {
             SettingsView()
         }
 
-        AboutScene(links: AboutLinks(
-            website: nil,
-            sourceCode: URL(string: "https://github.com/dmccullum/Glamshot")
-        )) {
+        AboutScene(links: AboutLinks(sourceCode: URL(string: "https://github.com/dmccullum/Glamshot")),
+                   showsIcon: false) {
             FlashSignature()
         }
     }
