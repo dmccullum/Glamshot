@@ -45,6 +45,12 @@ The page's Light or Dark setting sets its `prefers-color-scheme` and Safari's ch
 
 Type an address (⌘L), open a local `.html`, `.webarchive` or `.webloc` file (⌘O), drop a link on the window, or bring in Safari's front page (⌥⌘L), one of its open tabs, or a bookmark. Hide Elements… hides parts of a page by CSS selector, such as a cookie banner. Wait After Loading in Settings gives animations and late content up to five seconds to finish before the photo.
 
+`glamshot://open?url=<address>` opens an http or https page in Glamshot. To send Safari's current page there, save this as a bookmark's address:
+
+```
+javascript:location.href='glamshot://open?url='+encodeURIComponent(location.href)
+```
+
 ## Shortcuts and the command line
 
 The **Take Glamshot** action in Shortcuts takes a web address, a size and Full Page, and returns the image framed with the current settings.

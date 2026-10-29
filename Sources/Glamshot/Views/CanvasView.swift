@@ -172,8 +172,9 @@ struct CanvasView: View {
         return provider
     }
 
-    /// A dropped .webloc opens the page it points to.
+    /// A dropped .webloc opens the page it points to, and a glamshot:// address the page it names.
     static func resolved(_ url: URL) -> URL {
+        if url.scheme == GlamshotLink.scheme { return GlamshotLink.page(from: url) ?? url }
         guard url.isFileURL, url.pathExtension == "webloc",
               let data = try? Data(contentsOf: url),
               let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
