@@ -1,17 +1,18 @@
 """Generates Icon/Glamshot.icon, the Icon Composer source for the app icon.
 
-The icon is a Safari window built like a camera seen from the front: the address bar's end is a
-lit flash window with a bloom and streak of glare, and the page's hero banner holds a round photo
-in a glass ring where a lens would sit. It stands on a system-blue gradient.
+The icon is a Safari window built like a camera seen from the front: large traffic lights stay
+top left, the toolbar's right end is a lit flash window, and a round photo in a thick glass ring
+sits where a lens would. The window is white in the light appearance and graphite in the dark one,
+on a deep system-blue gradient.
 
 Geometry follows Icon Composer's grid (lines every 128 pt, circles of radius 102, 256 and 410 about
 the centre of the 1024 canvas): the window fills 128...896 x 160...864, centred on 512.
 
-usage: python3 Icon/build-icon.py [OUT.icon]
+usage: python3 Icon/build-icon.py [OUT.icon] ['{"toolbar": "dark", "url": true}']
 
 OUT defaults to Icon/Glamshot.icon and is replaced wholesale, so close it in Icon Composer first.
-Preview a build with Icon Composer's ictool (renditions: Default, Dark, TintedLight, TintedDark,
-ClearLight, ClearDark):
+The optional JSON overrides any key of P below. Preview a build with Icon Composer's ictool
+(renditions: Default, Dark, TintedLight, TintedDark, ClearLight, ClearDark):
   "$(xcode-select -p)/../Applications/Icon Composer.app/Contents/Executables/ictool" Icon/Glamshot.icon \\
       --export-image --output-file preview.png --platform macOS --rendition Default \\
       --width 512 --height 512 --scale 2 --design-generation 26
@@ -21,32 +22,38 @@ import json, os, shutil, sys
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "Glamshot.icon")
 if not OUT.rstrip("/").endswith(".icon"):
     sys.exit("refusing to replace %s: the output must be an .icon bundle" % OUT)
+# band: "navy", "blue" or null; body and toolbar: "light" or "dark" in the light appearance;
+# bg: "bright" (with a pale corner) or "deep".
+P = {"band": None, "body": "light", "toolbar": "light", "bg": "deep", "url": False, "lines": 0,
+     "bar": 196, "photo_r": 186, "ring": 26, "light_r": 44, "flash_w": 240, "bloom": 110, "streak": False,
+     "glow": 0.45, "glow_r": 230}
+if len(sys.argv) > 2:
+    P.update(json.loads(sys.argv[2]))
 A = os.path.join(OUT, "Assets")
 shutil.rmtree(OUT, ignore_errors=True)
 os.makedirs(A)
 
 HEAD = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">'
 
-# Window: grid 128...896 x 160...864, toolbar 128 tall.
-X, Y, W, H, R, BAR = 128, 160, 768, 704, 120, 128
+# Window: grid 128...896 x 160...864.
+X, Y, W, H, R, BAR = 128, 160, 768, 704, 120, P["bar"]
 CY0 = Y + BAR/2
-# Flash window at the toolbar's right end; the address bar runs from the traffic lights to it.
-FW = 92
-FX = X + W - 72 - FW
+# Flash window at the toolbar's right end.
+FW = P["flash_w"]
+FX = X + W - (30 + BAR/2 - BAR*0.28) - FW
 FCX = FX + FW/2
-UX0 = X + 270
-# Hero banner and the round photo centred in it.
-HX, HY, HW, HH = X + 56, Y + BAR + 64, W - 112, 288
-PCX, PCY, PR = 512, HY + HH/2, 150
-LY = HY + HH + 52  # first text line
+# The band and the round photo centred on it, in the middle of the page below the toolbar.
+PCX, PCY, PR = 512, Y + BAR + (H - BAR)/2 - (30 if P["lines"] else 0), P["photo_r"]
+BX, BW, BH = X + 56, W - 112, 300
+BY = PCY - BH/2
+LY = BY + BH + 48
 
 # Organic gradients: a base colour and soft radial blobs (x, y, radius as fractions of the box width, colour).
-CANVAS = ["#0A6CFF", (0.15, 0.0, 0.95, "#6CC0FF"), (0.95, 1.05, 0.85, "#0038B8")]
+CANVAS = (["#0A6CFF", (0.15, 0.0, 0.95, "#6CC0FF"), (0.95, 1.05, 0.85, "#0038B8")] if P["bg"] == "bright" else
+          ["#0656E0", (0.2, 0.0, 0.9, "#1E7BFF"), (0.9, 1.05, 0.85, "#002A8C")])
 CANVAS_DARK = ["#0A1A40", (0.15, 0.0, 0.95, "#1A4C8C"), (0.95, 1.05, 0.85, "#040A20")]
-PHOTO = ["#3F8CFF", (0.15, 0.15, 0.8, "#9BE3FF"), (0.9, 0.25, 0.7, "#A07BFF"), (0.8, 0.95, 0.8, "#FF9CC4"), (0.1, 0.9, 0.6, "#1E4FE0")]
-PHOTO_DARK = ["#123A80", (0.15, 0.15, 0.8, "#2E7DB8"), (0.9, 0.25, 0.7, "#4A36A0"), (0.8, 0.95, 0.8, "#8A3A70"), (0.1, 0.9, 0.6, "#0A2A90")]
-HERO = ["#5A78F0", (0.0, 0.3, 0.55, "#2F5BFF"), (0.3, 1.0, 0.45, "#2440D8"), (0.6, 0.0, 0.5, "#9A7BFF"), (1.0, 0.75, 0.55, "#FF9CC4")]
-HERO_DARK = ["#1E2C70", (0.0, 0.3, 0.55, "#14308A"), (0.3, 1.0, 0.45, "#0E1E6A"), (0.6, 0.0, 0.5, "#42358C"), (1.0, 0.75, 0.55, "#7A3A68")]
+PHOTO = ["#7A6CFF", (0.2, 0.15, 0.7, "#7FE7FF"), (0.9, 0.3, 0.6, "#FF8AC8"), (0.6, 1.0, 0.6, "#FFC46B"), (0.0, 0.9, 0.5, "#4A7BFF")]
+BANDS = {"navy": (("#22397A", "#0D1A40"), ("#16244E", "#080F26")), "blue": (("#3D9BFF", "#0A6CFF"), ("#2A7FE0", "#0A52B8"))}
 
 LIGHT_ONLY = [{"appearance": "dark", "value": True}]
 LIGHT_ONLY_UNTINTED = [{"appearance": "dark", "value": True}, {"appearance": "tinted", "value": True}]
@@ -116,13 +123,10 @@ def shape(name, d, fill, **extra):
     return layer(name, '<path d="%s"/>' % d, fill, **extra)
 
 
-def photo(name, spec, dark_spec, clip_d, box):
-    """A light and a dark rendering of an organic gradient, clipped to clip_d."""
-    out = []
-    for s, nm, hidden in ((dark_spec, name + "-dark", DARK_ONLY), (spec, name, LIGHT_ONLY)):
-        d, b = blobs(s, box, nm.replace("-", ""))
-        out.append(layer(nm, '<defs>%s<clipPath id="c"><path d="%s"/></clipPath></defs><g clip-path="url(#c)">%s</g>' % (d, clip_d, b), hidden=hidden))
-    return out
+def clipped(name, spec, clip_d, box, hidden=None):
+    """An organic gradient clipped to clip_d."""
+    d, b = blobs(spec, box, name.replace("-", ""))
+    return layer(name, '<defs>%s<clipPath id="c"><path d="%s"/></clipPath></defs><g clip-path="url(#c)">%s</g>' % (d, clip_d, b), hidden=hidden)
 
 
 def radial(name, cx, cy, rx, ry, stops, **extra):
@@ -141,36 +145,51 @@ def group(name, layers, **opts):
 
 
 # Photo: the round photo in its glass ring, the camera's lens.
-group("Photo", [layer("trim", ring(PCX, PCY, PR + 14, PR - 2), fills(solid("#FFFFFF", 0.95), solid("#9AA3B0", 0.8), solid("#FFFFFF", 0.9)))]
-      + photo("circle", PHOTO, PHOTO_DARK, circle(PCX, PCY, PR), (PCX - PR, PCY - PR, 2*PR, 2*PR)),
-      specular=True, lighting="combined", shadow={"kind": "neutral", "opacity": 0.4}, translucency={"enabled": True, "value": 0.2})
+group("Photo", [layer("trim", ring(PCX, PCY, PR + P["ring"], PR - 2), fills(solid("#FFFFFF"), solid("#E6EBF2"), solid("#FFFFFF")))]
+      + [clipped("circle", PHOTO, circle(PCX, PCY, PR), (PCX - PR, PCY - PR, 2*PR, 2*PR))],
+      specular=True, lighting="combined", shadow={"kind": "neutral", "opacity": 0.45}, translucency={"enabled": True, "value": 0.1})
 
-# Chrome: flash glare (no glass, so it stays soft), traffic lights, flash window, address bar and page.
-glare = [radial("streak", FCX, CY0, 420, 26, [(0, "#FFFFFF", 0.95), (0.5, "#FFF8E4", 0.35), (1, "#FFF8E4", 0)],
-                glass=False, **{"hidden-specializations": [{"appearance": "tinted", "value": True}]}),
-         radial("bloom", FCX, CY0, 150, 150, [(0, "#FFFFFF", 1), (0.25, "#FFFBEA", 0.85), (0.6, "#FFF4D0", 0.3), (1, "#FFF4D0", 0)], glass=False)]
-lights = layer("lights", "".join('<circle cx="%.1f" cy="%.1f" r="17" fill="%s"/>' % (X + 84 + i*52, CY0, c)
-                                 for i, c in enumerate(["#FF5F57", "#FEBC2E", "#28C840"])))
-fresnel = layer("fresnel", "".join('<path d="%s"/>' % rr(FX + FW*(i + 1)/4 - 3, CY0 - 18, 6, 36, 3) for i in range(3)),
-                fills(solid("#E0A800", 0.35), solid("#B88600", 0.4), solid("#9A9A9A", 0.4)))
-flash = shape("flash", rr(FX, CY0 - 32, FW, 64, 22), fills(lin("#FFE58A", "#FFF7DA"), lin("#FFE58A", "#FFF2C8"), solid("#FFFFFF")))
-url = shape("url", rr(UX0, CY0 - 26, FX - 28 - UX0, 52, 26), fills(solid("#FFFFFF", 0.95), solid("#FFFFFF", 0.14), solid("#FFFFFF", 0.9)))
-hero = photo("hero", HERO, HERO_DARK, rr(HX, HY, HW, HH, 36), (HX, HY, HW, HH))
-lines = layer("lines", "".join('<path d="%s"/>' % rr(HX, LY + i*52, w, 26, 13) for i, w in enumerate([HW, HW*0.62])),
-              fills(solid("#0A3A80", 0.28), solid("#FFFFFF", 0.32), solid("#FFFFFF", 0.5)))
-group("Chrome", glare + [lights, fresnel, flash, url] + hero + [lines],
-      specular=True, lighting="individual", shadow={"kind": "layer-color", "opacity": 0.45}, translucency={"enabled": True, "value": 0.1})
+# Chrome: flash glare (no glass, so it stays soft), traffic lights, flash window, band and page.
+glare = [radial("bloom", FCX, CY0, P["bloom"], P["bloom"], [(0, "#FFFFFF", 1), (0.4, "#FFFCEE", 0.95), (0.7, "#FFF4D0", 0.4), (1, "#FFF4D0", 0)], glass=False)]
+if P["streak"]:
+    glare.insert(0, radial("streak", FCX, CY0, 420, 26, [(0, "#FFFFFF", 0.95), (0.5, "#FFF8E4", 0.35), (1, "#FFF8E4", 0)],
+                           glass=False, **{"hidden-specializations": [{"appearance": "tinted", "value": True}]}))
+lr = P["light_r"]
+lights = layer("lights", "".join('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>' % (X + 30 + BAR/2 - lr + lr + i*lr*2.6, CY0, lr, c)
+                                 for i, c in enumerate(["#FF3B30", "#FFCC00", "#28D150"])))
+n = max(3, int(FW/36))
+FH = BAR*0.56
+fresnel = layer("fresnel", "".join('<path d="%s"/>' % rr(FX + FW*(i + 1)/(n + 1) - 4, CY0 - FH*0.29, 8, FH*0.58, 4) for i in range(n)),
+                fills(solid("#D89A00", 0.4), solid("#B88600", 0.45), solid("#9A9A9A", 0.4)))
+FH = BAR*0.56
+flash = shape("flash", rr(FX, CY0 - FH/2, FW, FH, FH*0.37), fills(lin("#FFE070", "#FFF6D0"), lin("#FFE070", "#FFF0C0"), solid("#FFFFFF")))
+chrome = glare + [lights, fresnel, flash]
+if P["url"]:
+    ux0 = X + 66 + lr*6.4 + 40
+    chrome.append(shape("url", rr(ux0, CY0 - 26, FX - 32 - ux0, 52, 26), fills(solid("#FFFFFF", 0.95), solid("#FFFFFF", 0.14), solid("#FFFFFF", 0.9))))
+if P["band"]:
+    bl, bd = BANDS[P["band"]]
+    chrome.append(shape("band", rr(BX, BY, BW, BH, 40), fills(lin(*bl), lin(*bd), solid("#FFFFFF", 0.35))))
+if P["lines"]:
+    chrome.append(layer("lines", "".join('<path d="%s"/>' % rr(BX, LY + i*52, w, 28, 14) for i, w in enumerate([BW, BW*0.62][:P["lines"]])),
+                        fills(solid("#0A3A80", 0.35), solid("#FFFFFF", 0.35), solid("#FFFFFF", 0.5))))
+group("Chrome", chrome, specular=True, lighting="individual", shadow={"kind": "layer-color", "opacity": 0.45},
+      translucency={"enabled": True, "value": 0.1})
 
-# Body: the frosted window pane and its toolbar.
-group("Body", [shape("toolbar", top_rr(X, Y, W, BAR, R), fills(solid("#E9EEF6", 0.6), solid("#FFFFFF", 0.06), solid("#FFFFFF", 0.3))),
-               shape("pane", rr(X, Y, W, H, R), fills(solid("#FFFFFF", 0.86), solid("#2A2C33", 0.78), solid("#FFFFFF", 0.7)))],
-      specular=True, lighting="combined", **{"blur-material": 0.5},
-      shadow={"kind": "neutral", "opacity": 0.55}, translucency={"enabled": True, "value": 0.3})
+# Body: the window pane and its toolbar.
+dark_body = P["body"] == "dark"
+group("Body", [shape("toolbar", top_rr(X, Y, W, BAR, R), fills(solid("#FFFFFF", 0.07) if dark_body else solid("#1E222A", 0.92) if P["toolbar"] == "dark" else solid("#D3DBE7", 0.9),
+                                                               solid("#FFFFFF", 0.07), solid("#FFFFFF", 0.3))),
+               shape("pane", rr(X, Y, W, H, R), fills(solid("#262A33", 0.94) if dark_body else solid("#FFFFFF", 0.94),
+                                                     solid("#2A2C33", 0.9), solid("#FFFFFF", 0.7)))],
+      specular=True, lighting="combined", **{"blur-material": 0.3},
+      shadow={"kind": "neutral", "opacity": 0.6}, translucency={"enabled": True, "value": 0.15})
 
 # Canvas: the flash's light on the backdrop, over the blue gradient (tinted falls back to the fill).
+g = P["glow"]
 cd, cb = blobs(CANVAS, (0, 0, 1024, 1024), "c")
 dd, db = blobs(CANVAS_DARK, (0, 0, 1024, 1024), "d")
-group("Canvas", [radial("glow", FCX, CY0, 380, 380, [(0, "#FFFFFF", 0.95), (0.35, "#FFF6DA", 0.55), (1, "#FFF6DA", 0)]),
+group("Canvas", [radial("glow", FCX, CY0, P["glow_r"], P["glow_r"], [(0, "#FFFFFF", 0.95*g), (0.35, "#FFF6DA", 0.55*g), (1, "#FFF6DA", 0)]),
                  layer("canvas-dark", "<defs>%s</defs>%s" % (dd, db), hidden=DARK_ONLY),
                  layer("canvas", "<defs>%s</defs>%s" % (cd, cb), hidden=LIGHT_ONLY_UNTINTED)],
       specular=False, shadow={"kind": "none", "opacity": 0}, translucency={"enabled": False, "value": 0})
