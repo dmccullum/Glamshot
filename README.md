@@ -12,17 +12,17 @@ The page in the window is live. Sign in, close banners and scroll to the part yo
 - **Displays**: 1080p and 1440p.
 - **iPad**: iPad mini, iPad Air 11" and 13", iPad Pro 11" and 13".
 - **iPhone**: iPhone 18 Pro, 18 Pro Max, 17, Air and 17e. Pages get Safari on iPhone's user agent, so sites serve their phone layout.
-- **Social**: 1080 × 1080, 1080 × 1350, 1080 × 1920 and 1920 × 1080. The frame fits inside the image.
+- **Social**: 1080 × 1080, 1080 × 1350, 1080 × 1920 and 1920 × 1080.
 - **Custom**: any width × height from 200 to 8,000 points.
 
-Each size saves at 1×, 2× or 3×. In Settings › Sizes you can rename, resize, reorder or delete any size, built-in or your own, and Restore Built-In Sizes puts the built-ins back.
+The size is the saved image, whichever frame you pick: padding and the window fit inside it, and the page gets the room that's left. It saves at 1×, 2× or 3×; MacBook Pro 14" at 2× is 3024 × 1964 pixels. In Settings › Sizes you can rename, resize, reorder or delete any size, built-in or your own, and Restore Built-In Sizes puts the built-ins back.
 
 **Page Width** lays the page out wider than the screen, up to twice its width, for pages that look cramped at the device's own size.
 
 ## Screen or full page
 
 - **Screen** (⌘1) photographs what's in the window at the size's resolution.
-- **Full Page** (⌘2) photographs the whole scrolling length as one image, up to 32,768 pixels tall. Before it does, Glamshot loads lazy images, finishes fade-ins and scroll animations, and keeps viewport-height sections, such as a 100vh hero, at their on-screen height.
+- **Full Page** (⌘2) photographs the whole scrolling length as one image, up to 32,768 pixels tall. The size's width is the page's, and any frame goes around it. Before it does, Glamshot loads lazy images, finishes fade-ins and scroll animations, and keeps viewport-height sections, such as a 100vh hero, at their on-screen height.
 
 ## Frames
 
