@@ -163,6 +163,45 @@ enum SelfTest {
                   "\(shot.image.pixel(x: Int(pageCenter.x) * 2, y: Int(pageCenter.y) * 2))")
         }
 
+        // Saving a Screen shot from partway down a page leaves it where it is.
+        let scrolledURL = ProcessInfo.processInfo.environment["GLAMSHOT_SCROLL_URL"].flatMap(URL.init(string:))
+            ?? fixtures.appending(path: "scrolled.html")
+        let canvas = Look(name: "Canvas", window: .safari, backdrop: .canvas)
+        let screen = CaptureOptions(width: 1512, height: 982, scale: 1, delay: 0)
+        if let shoot = await attempt("scrolled shoot", {
+            try await HeadlessShoot(url: scrolledURL, viewport: FrameLayout.pageSize(output: screen.outputSize, look: canvas))
+        }) {
+            shoot.model.look = canvas
+            shoot.model.capture = screen
+            shoot.model.applyViewport()
+            let webView = shoot.model.webView
+            _ = try? await webView.callAsyncJavaScript("""
+                window.scrollTo({ top: 1400, behavior: 'instant' });
+                await new Promise(r => setTimeout(r, 400));
+                window.__scrolls = [];
+                addEventListener('scroll', () => __scrolls.push(Math.round(scrollY)));
+                addEventListener('resize', () => __scrolls.push('resize ' + innerWidth + '×' + innerHeight));
+                """, contentWorld: .page)
+            let before = try? await webView.callAsyncJavaScript("return scrollY", contentWorld: .page) as? NSNumber
+            let live = try? await shoot.model.photographer.snapshot(CGRect(origin: .zero, size: webView.bounds.size), scale: 1)
+            if let shot = await attempt("scrolled render", { try await shoot.model.render() }) {
+                try? await Task.sleep(for: .milliseconds(300))
+                let after = try? await webView.callAsyncJavaScript("return scrollY", contentWorld: .page) as? NSNumber
+                let events = (try? await webView.callAsyncJavaScript("return __scrolls.join(', ')", contentWorld: .page) as? String) ?? "?"
+                check("scrolled save keeps the scroll position", before == after && events.isEmpty,
+                      "before \(before ?? -1), after \(after ?? -1), events: \(events)")
+                if let live {
+                    let layout = FrameLayout.make(output: screen.outputSize, look: canvas)
+                    let rows = stride(from: 0, to: live.height, by: 37)
+                    let differing = rows.filter { y in
+                        shot.image.pixel(x: Int(layout.pageRect.minX) + 300, y: Int(layout.pageRect.minY) + y) != live.pixel(x: 300, y: y)
+                    }
+                    check("scrolled save matches the screen", differing.isEmpty, "rows \(differing.prefix(8)) differ")
+                }
+            }
+            shoot.close()
+        }
+
         print("Self-test: \(checks - failures) of \(checks) checks passed.")
         exit(failures == 0 ? 0 : 1)
     }

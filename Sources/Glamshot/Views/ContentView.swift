@@ -20,8 +20,10 @@ struct ContentView: View {
                 .inspectorColumnWidth(min: 260, ideal: 290, max: 360)
         }
         .toolbar { ShootToolbar(model: model, showsInspector: $showsInspector) }
+        // The title names the window in the Window menu and Mission Control; the toolbar leaves it
+        // out, since the address field already shows the page and the inspector the size.
         .navigationTitle(model.url.flatMap(FileNaming.domain(of:)) ?? "Glamshot")
-        .navigationSubtitle(subtitle)
+        .toolbar(removing: .title)
         .focusedSceneValue(\.shoot, model)
         .focusedSceneValue(\.inspectorShown, $showsInspector)
         .background(WindowReader { window in model.window = window })
@@ -31,8 +33,6 @@ struct ContentView: View {
             if model.url == nil, PendingOpen.shared.urls.isEmpty, let url = URL(string: savedAddress), !savedAddress.isEmpty { model.load(url) }
         }
         .onChange(of: undoManager) { model.undoManager = undoManager }
-        // Without a split view the subtitle modifier only takes its first value.
-        .onChange(of: subtitle) { model.window?.subtitle = subtitle }
         .onChange(of: PendingOpen.shared.urls, initial: true) {
             guard PendingOpen.shared.frontmost === model || model.window == nil,
                   let url = PendingOpen.shared.take() else { return }
@@ -53,10 +53,6 @@ struct ContentView: View {
             Alert(title: Text(alert.title), message: Text(alert.message))
         }
         .frame(minWidth: 760, minHeight: 520)
-    }
-
-    private var subtitle: String {
-        "\(model.capture.width)×\(model.capture.height) · \(model.capture.scale)× · \(model.look.summary)"
     }
 }
 
@@ -110,7 +106,7 @@ struct ShootToolbar: ToolbarContent {
                 }
             }
             .padding(.horizontal, 12)
-            .frame(minWidth: 320, idealWidth: 460, maxWidth: 560)
+            .frame(minWidth: 360, idealWidth: 720, maxWidth: .infinity)
         }
         // One screen or the whole page decides most of the rest, so it sits at the top right, as
         // Granular's mode does. A desktop is always one screen, so it has no choice to show.

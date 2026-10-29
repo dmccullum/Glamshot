@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta name="viewport" content="width=device-width">
+<style>
+  /* Like danielm.cc: smooth scrolling, a svh-sized hero with a scroll-driven lift, and blocks
+     that drift as they cross the view. */
+  html { scroll-behavior: smooth; }
+  html, body { margin: 0; }
+  @keyframes lift { from { translate: 0; } to { translate: 0 -12svh; } }
+  @keyframes drift { from { translate: 0 -2rem; } to { translate: 0 2rem; } }
+  .hero { height: 100svh; background: rgb(0, 0, 255); view-timeline: --hero block; }
+  .hero div { height: 50svh; background: rgb(0, 0, 255); animation: lift linear both; animation-timeline: --hero; animation-range: exit; }
+  .band { height: 500px; }
+  .band:nth-child(even) { background: rgb(255, 0, 0); }
+  .band:nth-child(odd) { background: rgb(0, 255, 0); }
+  .drift { animation: drift linear both; animation-timeline: view(); }
+</style></head>
+<body><section class="hero"><div></div></section>
+<main><div class="band"></div><div class="band drift"></div><div class="band"></div><div class="band drift"></div><div class="band"></div><div class="band"></div></main></body></html>

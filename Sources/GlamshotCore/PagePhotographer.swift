@@ -140,7 +140,7 @@ public final class PagePhotographer {
 
     /// Draws `rect` (in the view's points) at `scale` pixels per point. WebKit renders the content
     /// again at that size rather than enlarging what's on screen.
-    func snapshot(_ rect: CGRect, scale: Int) async throws -> CGImage {
+    public func snapshot(_ rect: CGRect, scale: Int) async throws -> CGImage {
         let configuration = WKSnapshotConfiguration()
         configuration.rect = rect
         configuration.afterScreenUpdates = false

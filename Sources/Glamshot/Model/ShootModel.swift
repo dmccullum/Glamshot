@@ -124,7 +124,7 @@ final class ShootModel {
         } else {
             webView.load(URLRequest(url: url))
         }
-        RecentPages.shared.add(url)
+        if remembersSettings { RecentPages.shared.add(url) }
     }
 
     func reload() { webView.reload() }
@@ -181,7 +181,7 @@ final class ShootModel {
 
     /// The preset matching the output size, if any.
     var currentPreset: SizePreset? {
-        let matches = Defaults.shared.allPresets.filter { capture.matches($0) }
+        let matches = Defaults.shared.presets.filter { capture.matches($0) }
         // Two devices can share a size (iPhone 17 and 17 Pro); keep the one that was picked.
         return matches.first { $0.id == chosenPresetID } ?? matches.first
     }
@@ -327,8 +327,11 @@ final class ShootModel {
     /// Safari on iPhone's bottom bar floats over the page. Its small viewport (svh) stops above
     /// the bar, so a 100svh hero ends there, while the page keeps drawing underneath, as on a phone.
     static func applyViewportInsets(to webView: WKWebView, for look: Look) {
-        let bottom = look.window == .safari && look.safari.device == .iPhone ? ChromeMetrics.iPhoneBottomBarInset : 0
-        webView.setMinimumViewportInset(NSEdgeInsets(), maximumViewportInset: NSEdgeInsets(top: 0, left: 0, bottom: bottom, right: 0))
+        webView.setMinimumViewportInset(NSEdgeInsets(), maximumViewportInset: NSEdgeInsets(top: 0, left: 0, bottom: viewportInset(for: look), right: 0))
+    }
+
+    static func viewportInset(for look: Look) -> CGFloat {
+        look.window == .safari && look.safari.device == .iPhone ? ChromeMetrics.iPhoneBottomBarInset : 0
     }
 
     private func applyHiddenSelectors() {
@@ -444,14 +447,23 @@ final class ShootModel {
         // Lay the page out in the room this look leaves in this output, then put the view back.
         let room = FrameLayout.pageSize(output: options.outputSize, look: look.resolved(for: options.outputSize, fullPage: options.fullPage),
                                         fullPage: options.fullPage)
+        // Only what differs from the canvas changes, so a shot of the canvas as it stands leaves
+        // the page alone: no relayout, and no scroll anchoring moving it under the person.
         let original = (size: webView.frame.size, zoom: webView.pageZoom)
-        webView.setFrameSize(room)
-        webView.pageZoom = options.zoom
-        Self.applyViewportInsets(to: webView, for: look.resolved(for: options.outputSize, fullPage: options.fullPage))
+        let resolved = look.resolved(for: options.outputSize, fullPage: options.fullPage)
+        let changesViewport = room != original.size || options.zoom != original.zoom
+            || Self.viewportInset(for: resolved) != Self.viewportInset(for: effectiveLook)
+        if changesViewport {
+            webView.setFrameSize(room)
+            webView.pageZoom = options.zoom
+            Self.applyViewportInsets(to: webView, for: resolved)
+        }
         defer {
-            webView.setFrameSize(original.size)
-            webView.pageZoom = original.zoom
-            Self.applyViewportInsets(to: webView, for: effectiveLook)
+            if changesViewport {
+                webView.setFrameSize(original.size)
+                webView.pageZoom = original.zoom
+                Self.applyViewportInsets(to: webView, for: effectiveLook)
+            }
         }
         let page = try await photographer.capture(options)
         let image = try await ShotRenderer.render(
@@ -570,7 +582,7 @@ final class ShootModel {
     /// Renders every checked size into a folder the person picks.
     func exportSizes() async {
         guard hasPage else { return }
-        let presets = Defaults.shared.allPresets.filter { exportSizeIDs.contains($0.id) }
+        let presets = Defaults.shared.presets.filter { exportSizeIDs.contains($0.id) }
         guard !presets.isEmpty else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
