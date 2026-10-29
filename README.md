@@ -21,6 +21,7 @@ swift build
 swift test
 Scripts/build-app.sh && open build/Glamshot.app
 build/Glamshot.app/Contents/MacOS/Glamshot --self-test Tests/Fixtures   # photographs the fixture pages and checks pixels
+build/Glamshot.app/Contents/MacOS/Glamshot --capture https://example.com out.png --full-page --size 1512x982 --scale 2
 ```
 
 Or double-click `Build Glamshot.command`.
