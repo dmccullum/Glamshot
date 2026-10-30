@@ -1,6 +1,10 @@
-"""Generates Icon/Glamshot.icon, the Icon Composer source for the app icon.
+"""Generates the previous Glamshot app icon as an Icon Composer document.
 
-The icon is a Safari window built like a camera seen from the front: large traffic lights stay
+This script no longer builds the shipped icon. Icon/Glamshot.icon is now maintained directly as an
+Icon Composer document and is the source of truth, so the script refuses to write over it. It is
+kept as a record of the earlier design and writes only to another .icon bundle.
+
+The earlier icon is a Safari window built like a camera seen from the front: large traffic lights stay
 top left, the toolbar's right end is a yellow flash window, and a glass lens in a thick white ring
 sits in the middle of the page. In the light appearance the toolbar is white, the traffic lights
 have darker rims and the page is a sky-blue gradient; in the dark one the window is graphite. The
@@ -9,18 +13,23 @@ backdrop is a deep system-blue gradient.
 Geometry follows Icon Composer's grid (lines every 128 pt, circles of radius 102, 256 and 410 about
 the centre of the 1024 canvas): the window fills 128...896 x 160...864, centred on 512.
 
-usage: python3 Icon/build-icon.py [OUT.icon] ['{"toolbar": "dark", "url": true}']
+usage: python3 Icon/build-icon.py OUT.icon ['{"toolbar": "dark", "url": true}']
 
-OUT defaults to Icon/Glamshot.icon and is replaced wholesale, so close it in Icon Composer first.
+OUT is required and is replaced wholesale, so close it in Icon Composer first.
 The optional JSON overrides any key of P below. Preview a build with Icon Composer's ictool
 (renditions: Default, Dark, TintedLight, TintedDark, ClearLight, ClearDark):
-  "$(xcode-select -p)/../Applications/Icon Composer.app/Contents/Executables/ictool" Icon/Glamshot.icon \\
+  "$(xcode-select -p)/../Applications/Icon Composer.app/Contents/Executables/ictool" OUT.icon \\
       --export-image --output-file preview.png --platform macOS --rendition Default \\
       --width 512 --height 512 --scale 2 --design-generation 26
 """
 import json, math, os, shutil, sys
 
-OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "Glamshot.icon")
+if len(sys.argv) < 2:
+    sys.exit("usage: python3 Icon/build-icon.py OUT.icon [JSON]")
+OUT = sys.argv[1]
+SHIPPED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Glamshot.icon")
+if os.path.realpath(OUT.rstrip("/")) == os.path.realpath(SHIPPED):
+    sys.exit("refusing to replace %s: the shipped icon is edited in Icon Composer, not generated" % SHIPPED)
 if not OUT.rstrip("/").endswith(".icon"):
     sys.exit("refusing to replace %s: the output must be an .icon bundle" % OUT)
 # band: "navy", "blue" or null; body and toolbar: "light" or "dark" in the light appearance;
