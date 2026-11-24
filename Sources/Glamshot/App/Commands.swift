@@ -356,7 +356,7 @@ final class PendingOpen {
             urls.append(contentsOf: new.dropFirst())
         } else {
             urls.append(contentsOf: new)
-            NSApp.sendAction(Selector(("newWindowForTab:")), to: nil, from: nil)
+            NSApp.sendAction(#selector(NSResponder.newWindowForTab(_:)), to: nil, from: nil)
         }
     }
 

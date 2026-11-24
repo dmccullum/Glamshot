@@ -55,7 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func newWindow() {
-        NSApp.sendAction(Selector(("newWindowForTab:")), to: nil, from: nil)
+        NSApp.sendAction(#selector(NSResponder.newWindowForTab(_:)), to: nil, from: nil)
         if NSApp.windows.filter(\.isVisible).isEmpty {
             NSApp.activate()
         }

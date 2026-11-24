@@ -570,11 +570,12 @@ final class ShootModel {
         Defaults.shared.saveFolder = folder
 
         let format = Defaults.shared.format
+        let cancelExport: @MainActor () -> Void = { [weak self] in self?.cancel() }
         let task = Task {
             var written: [URL] = []
             for (index, preset) in presets.enumerated() {
                 if Task.isCancelled { break }
-                status = .progress("Exporting \(index + 1) of \(presets.count)", cancel: .init("Cancel", help: "⌘.") { [weak self] in self?.cancel() })
+                status = .progress("Exporting \(index + 1) of \(presets.count)", cancel: .init("Cancel", help: "⌘.", perform: cancelExport))
                 var options = capture
                 options.apply(preset)
                 let look = self.look
